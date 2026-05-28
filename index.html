@@ -193,7 +193,7 @@ const TIPO_DIM = {
   'Plazo fijo':'var(--pink-dim)', 'Otros':'rgba(138,136,128,0.1)'
 };
 
-let state = { ahorros:[], moneda:'ARS', tipo:null, persona:'Manuel' };
+let state = { ahorros:[], moneda:'ARS', tipo:null, persona:'Manuel', cotizacion: 1150, cotizacionTipo: 'est.' };
 
 // Notion API via serverless proxy (avoids CORS)
 async function notionRequest(path, method='GET', body=null) {
@@ -267,17 +267,39 @@ function loadDemo() {
 
 function renderAll() { renderTipos(); renderHistorial(); updateObjetivo(); }
 
+async function fetchCotizacion() {
+  try {
+    const res = await fetch('https://dolarapi.com/v1/dolares/blue');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    state.cotizacion = data.venta || data.compra || 1150;
+    state.cotizacionTipo = 'Blue';
+  } catch {
+    try {
+      const res = await fetch('https://dolarapi.com/v1/dolares/oficial');
+      const data = await res.json();
+      state.cotizacion = data.venta || 1150;
+      state.cotizacionTipo = 'Oficial';
+    } catch {
+      state.cotizacion = 1150;
+      state.cotizacionTipo = 'est.';
+    }
+  }
+}
+
 function updateObjetivo() {
   let totalUSD = 0, totalARS = 0;
   state.ahorros.forEach(a => { totalUSD += a.montoUSD||0; totalARS += a.montoARS||0; });
-  const arsEnUSD = totalARS / 1150;
+  const cotiz = state.cotizacion || 1150;
+  const arsEnUSD = totalARS / cotiz;
   const equiv = totalUSD + arsEnUSD;
   const pct = Math.min(100,(equiv/10000)*100);
   document.getElementById('usd-total').textContent = 'u$d ' + Math.round(totalUSD).toLocaleString('es-AR');
   document.getElementById('ars-total').textContent = '$ ' + Math.round(totalARS).toLocaleString('es-AR');
   document.getElementById('usd-equiv').textContent = 'u$d ' + Math.round(equiv).toLocaleString('es-AR');
   document.getElementById('progress-fill').style.width = pct.toFixed(1)+'%';
-  document.getElementById('progress-label').textContent = pct.toFixed(1)+'% · cotiz. $1.150/u$d';
+  const tipo = state.cotizacionTipo || 'est.';
+  document.getElementById('progress-label').textContent = `${pct.toFixed(1)}% · ${tipo} $${Math.round(cotiz).toLocaleString('es-AR')}/u$d`;
 }
 
 function renderTipos() {
@@ -397,7 +419,7 @@ function showToast(msg, error=false) {
   setTimeout(()=>t.classList.remove('show'),2800);
 }
 
-loadData();
+fetchCotizacion().then(() => loadData());
 </script>
 </body>
 </html>
