@@ -376,15 +376,16 @@ async function loadAll() {
   btn.classList.add('loading');
   document.getElementById('last-sync').textContent = 'Sincronizando...';
   try {
-    const [ra, rd, rg] = await Promise.all([
+    await fetchCotizacion();
+    const [ra, rd, rg] = await Promise.allSettled([
       notionReq(`/v1/databases/${DB_AHORROS}/query`,'POST',{sorts:[{property:'Fecha',direction:'descending'}]}),
       notionReq(`/v1/databases/${DB_DEUDAS}/query`,'POST',{sorts:[{property:'Fecha',direction:'descending'}]}),
-      notionReq(`/v1/databases/${DB_GASTOS}/query`,'POST',{sorts:[{property:'Fecha',direction:'descending'}]}),
-      fetchCotizacion()
+      notionReq(`/v1/databases/${DB_GASTOS}/query`,'POST',{sorts:[{property:'Fecha',direction:'descending'}]})
     ]);
-    state.ahorros = (ra.results||[]).map(parseAhorro);
-    state.deudas  = (rd.results||[]).map(parseDeuda);
-    state.gastos  = (rg.results||[]).map(parseGasto);
+    if(ra.status==='fulfilled') state.ahorros = (ra.value.results||[]).map(parseAhorro);
+    if(rd.status==='fulfilled') state.deudas  = (rd.value.results||[]).map(parseDeuda);
+    if(rg.status==='fulfilled') state.gastos  = (rg.value.results||[]).map(parseGasto);
+    else console.warn('Gastos no disponible — conectar integración en Notion');
     const now = new Date();
     document.getElementById('last-sync').textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} · ${state.cotizacionTipo} $${Math.round(state.cotizacion).toLocaleString('es-AR')}`;
     renderAll();
@@ -646,6 +647,8 @@ async function saveGasto() {
   } catch { showToast('Error al guardar',true); }
   finally { btn.disabled=false; btn.textContent='Registrar gasto'; }
 }
+
+function openSaldar(id) {
   const d = state.deudas.find(x=>x.id===id);
   if(!d) return;
   state.editingDeudaId = id;
