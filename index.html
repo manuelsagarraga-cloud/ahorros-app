@@ -101,7 +101,7 @@
       <span class="spin">↻</span> Sync
     </button>
   </div>
-  <p class="subtitle" id="last-sync">Conectando con Notion...</p>
+  <p class="subtitle" id="last-sync">Conectando...</p>
 </div>
 
 <div class="objetivo">
@@ -178,9 +178,9 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const NOTION_TOKEN = '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';
+// ← Reemplazá esta URL con la de tu Cloudflare Worker después de crearlo
+const WORKER_URL = 'https://notion-proxy.msagarraga.workers.dev';
 const DB_ID = '0921211d-2e59-41be-b276-1c3869ed0e9e';
-const PROXY = 'https://notion-proxy.netlify.app/.netlify/functions/notion';
 
 const TIPO_COLORS = {
   'Dólares físicos':'var(--green)', 'Balanz':'var(--blue)',
@@ -193,16 +193,15 @@ const TIPO_DIM = {
   'Plazo fijo':'var(--pink-dim)', 'Otros':'rgba(138,136,128,0.1)'
 };
 
-let state = { ahorros:[], moneda:'ARS', tipo:null, persona:'Manuel', cotizacion: 1150, cotizacionTipo: 'est.' };
+let state = { ahorros:[], moneda:'ARS', tipo:null, persona:'Manuel', cotizacion:1150, cotizacionTipo:'est.' };
 
-// Notion API via serverless proxy (avoids CORS)
 async function notionRequest(path, method='GET', body=null) {
-  const res = await fetch(`/.netlify/functions/notion-proxy`, {
+  const res = await fetch(WORKER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path, method, body })
   });
-  if (!res.ok) throw new Error('Notion error ' + res.status);
+  if (!res.ok) throw new Error('Worker error ' + res.status);
   return res.json();
 }
 
@@ -231,42 +230,6 @@ function parseEntry(page) {
   };
 }
 
-async function loadData() {
-  const btn = document.querySelector('.sync-btn');
-  btn.classList.add('loading');
-  document.getElementById('last-sync').textContent = 'Sincronizando...';
-  try {
-    const data = await notionRequest(`/v1/databases/${DB_ID}/query`, 'POST', {
-      sorts: [{ property: 'Fecha', direction: 'descending' }]
-    });
-    state.ahorros = (data.results || []).map(parseEntry);
-    const now = new Date();
-    document.getElementById('last-sync').textContent =
-      `Actualizado ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
-    renderAll();
-  } catch(e) {
-    document.getElementById('last-sync').textContent = 'Error al sincronizar';
-    showToast('No se pudo conectar con Notion', true);
-    if (!state.ahorros.length) loadDemo();
-  } finally {
-    btn.classList.remove('loading');
-  }
-}
-
-function loadDemo() {
-  state.ahorros = [
-    {id:'1',desc:'Dólares enero',montoARS:0,montoUSD:700,tipo:'Dólares físicos',persona:'Manuel',mes:'Enero',año:'2026',fecha:'2026-01-15',confirmado:true},
-    {id:'2',desc:'Dólares febrero',montoARS:0,montoUSD:700,tipo:'Dólares físicos',persona:'Manuel',mes:'Febrero',año:'2026',fecha:'2026-02-10',confirmado:true},
-    {id:'3',desc:'Balanz enero',montoARS:1040483,montoUSD:0,tipo:'Balanz',persona:'Manuel',mes:'Enero',año:'2026',fecha:'2026-01-20',confirmado:true},
-    {id:'4',desc:'Marquez obra',montoARS:750000,montoUSD:0,tipo:'Marquez obra',persona:'Ambos',mes:'Enero',año:'2026',fecha:'2026-01-24',confirmado:false},
-    {id:'5',desc:'Cripto USDT',montoARS:0,montoUSD:200,tipo:'Cripto',persona:'Manuel',mes:'Febrero',año:'2026',fecha:'2026-02-01',confirmado:true},
-  ];
-  document.getElementById('last-sync').textContent = 'Modo demo';
-  renderAll();
-}
-
-function renderAll() { renderTipos(); renderHistorial(); updateObjetivo(); }
-
 async function fetchCotizacion() {
   try {
     const res = await fetch('https://dolarapi.com/v1/dolares/blue');
@@ -287,6 +250,32 @@ async function fetchCotizacion() {
   }
 }
 
+async function loadData() {
+  const btn = document.querySelector('.sync-btn');
+  btn.classList.add('loading');
+  document.getElementById('last-sync').textContent = 'Sincronizando...';
+  try {
+    const [notionData] = await Promise.all([
+      notionRequest(`/v1/databases/${DB_ID}/query`, 'POST', {
+        sorts: [{ property: 'Fecha', direction: 'descending' }]
+      }),
+      fetchCotizacion()
+    ]);
+    state.ahorros = (notionData.results || []).map(parseEntry);
+    const now = new Date();
+    document.getElementById('last-sync').textContent =
+      `Actualizado ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} · ${state.cotizacionTipo} $${Math.round(state.cotizacion).toLocaleString('es-AR')}`;
+    renderAll();
+  } catch(e) {
+    document.getElementById('last-sync').textContent = 'Error al sincronizar';
+    showToast('No se pudo conectar', true);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+function renderAll() { renderTipos(); renderHistorial(); updateObjetivo(); }
+
 function updateObjetivo() {
   let totalUSD = 0, totalARS = 0;
   state.ahorros.forEach(a => { totalUSD += a.montoUSD||0; totalARS += a.montoARS||0; });
@@ -298,8 +287,7 @@ function updateObjetivo() {
   document.getElementById('ars-total').textContent = '$ ' + Math.round(totalARS).toLocaleString('es-AR');
   document.getElementById('usd-equiv').textContent = 'u$d ' + Math.round(equiv).toLocaleString('es-AR');
   document.getElementById('progress-fill').style.width = pct.toFixed(1)+'%';
-  const tipo = state.cotizacionTipo || 'est.';
-  document.getElementById('progress-label').textContent = `${pct.toFixed(1)}% · ${tipo} $${Math.round(cotiz).toLocaleString('es-AR')}/u$d`;
+  document.getElementById('progress-label').textContent = `${pct.toFixed(1)}% · ${state.cotizacionTipo} $${Math.round(cotiz).toLocaleString('es-AR')}/u$d`;
 }
 
 function renderTipos() {
@@ -323,12 +311,10 @@ function renderTipos() {
 
 function renderHistorial() {
   const sorted = [...state.ahorros].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,25);
-  if (!sorted.length) { document.getElementById('historial').innerHTML='<div class="empty">No hay movimientos</div>'; return; }
+  if (!sorted.length) { document.getElementById('historial').innerHTML='<div class="empty">No hay movimientos aún</div>'; return; }
   document.getElementById('historial').innerHTML = sorted.map(a => {
     const color = TIPO_COLORS[a.tipo]||'var(--muted)';
-    const check = a.confirmado
-      ? `<svg viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-      : '';
+    const check = a.confirmado ? `<svg viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="var(--green)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` : '';
     return `<div class="entry">
       <div class="entry-dot" style="background:${color}"></div>
       <div class="entry-info">
@@ -394,7 +380,7 @@ async function saveAhorro() {
     });
     renderAll(); closeModal(); showToast('✓ Guardado en Notion');
   } catch(e) {
-    showToast('Error al guardar en Notion', true);
+    showToast('Error al guardar', true);
   } finally {
     btn.disabled=false; btn.textContent='Guardar en Notion';
   }
@@ -409,7 +395,7 @@ async function toggleConfirm(id, confirmed) {
     await notionRequest(`/v1/pages/${id}`, 'PATCH', {
       properties: { 'Confirmado': { checkbox: confirmed } }
     });
-  } catch(e) { a.confirmado=!confirmed; renderHistorial(); }
+  } catch { a.confirmado=!confirmed; renderHistorial(); }
 }
 
 function showToast(msg, error=false) {
@@ -419,7 +405,7 @@ function showToast(msg, error=false) {
   setTimeout(()=>t.classList.remove('show'),2800);
 }
 
-fetchCotizacion().then(() => loadData());
+loadData();
 </script>
 </body>
 </html>
