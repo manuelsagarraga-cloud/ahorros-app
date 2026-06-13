@@ -149,8 +149,9 @@
 
 <!-- TABS -->
 <div class="tabs">
-  <button class="tab active" onclick="setTab('ahorros')">🟢 Ahorros</button>
-  <button class="tab" onclick="setTab('deudas')">🔴 Deudas</button>
+  <button class="tab active" onclick="setTab('ahorros',event)">🟢 Ahorros</button>
+  <button class="tab" onclick="setTab('deudas',event)">🔴 Deudas</button>
+  <button class="tab" onclick="setTab('gastos',event)">💸 Gastos</button>
 </div>
 
 <!-- AHORROS -->
@@ -167,10 +168,17 @@
   <div class="historial" id="historial-deudas"><div class="loading-state">Cargando...</div></div>
 </div>
 
+<!-- GASTOS -->
+<div id="panel-gastos" class="hidden">
+  <div class="section-title">Gastos grandes</div>
+  <div class="historial" id="historial-gastos"><div class="loading-state">Cargando...</div></div>
+</div>
+
 <!-- FABs -->
 <div class="fab-area">
   <button class="fab" id="fab-ahorro" onclick="openModal('ahorro')"><span>+</span> Ahorro</button>
-  <button class="fab deuda" id="fab-deuda" onclick="openModal('deuda')"><span>+</span> Deuda</button>
+  <button class="fab deuda" id="fab-deuda" onclick="openModal('deuda')" style="background:var(--red)"><span>+</span> Deuda</button>
+  <button class="fab" id="fab-gasto" onclick="openModal('gasto')" style="background:var(--amber);box-shadow:0 8px 32px rgba(203,171,126,0.25);display:none"><span>+</span> Gasto</button>
 </div>
 
 <!-- MODAL AHORRO -->
@@ -221,24 +229,90 @@
   </div>
 </div>
 
+<!-- MODAL GASTO -->
+<div class="overlay" id="overlay-gasto" onclick="closeIfOutside(event,'gasto')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="gasto-title">Nuevo gasto</h2>
+    <div class="field"><label>Descripción</label><input type="text" id="g-desc" placeholder="Ej: Crucero enero"/></div>
+    <div class="field"><label>Monto</label><input type="number" id="g-monto" placeholder="0" inputmode="decimal"/></div>
+    <div class="field">
+      <label>Moneda</label>
+      <div class="chips" id="chips-g-moneda">
+        <div class="chip active" data-val="ARS" onclick="selectChip(this,'g-moneda')" style="color:var(--amber)"><span class="chip-dot" style="background:var(--amber)"></span>ARS</div>
+        <div class="chip" data-val="USD" onclick="selectChip(this,'g-moneda')"><span class="chip-dot" style="background:var(--green)"></span>USD</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Categoría</label>
+      <div class="chips" id="chips-g-cat">
+        <div class="chip" data-val="Viaje" onclick="selectChip(this,'g-cat')"><span class="chip-dot" style="background:var(--blue)"></span>Viaje</div>
+        <div class="chip" data-val="Arreglo/Refacción" onclick="selectChip(this,'g-cat')"><span class="chip-dot" style="background:var(--brown)"></span>Arreglo</div>
+        <div class="chip" data-val="Compra grande" onclick="selectChip(this,'g-cat')"><span class="chip-dot" style="background:var(--pink)"></span>Compra grande</div>
+        <div class="chip" data-val="Otros" onclick="selectChip(this,'g-cat')"><span class="chip-dot" style="background:var(--muted)"></span>Otros</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Sale de</label>
+      <div class="chips" id="chips-g-origen">
+        <div class="chip active" data-val="Otro lado" onclick="selectChip(this,'g-origen')" style="color:var(--muted)"><span class="chip-dot" style="background:var(--muted)"></span>Otro lado</div>
+        <div class="chip" data-val="Dólares físicos" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--green)"></span>Dólares</div>
+        <div class="chip" data-val="Balanz" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--blue)"></span>Balanz</div>
+        <div class="chip" data-val="Cripto" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--amber)"></span>Cripto</div>
+        <div class="chip" data-val="Marquez obra" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--brown)"></span>Marquez</div>
+        <div class="chip" data-val="Plazo fijo" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--pink)"></span>Plazo fijo</div>
+      </div>
+    </div>
+    <button class="save-btn" id="btn-save-gasto" onclick="saveGasto()" style="background:var(--amber)">Registrar gasto</button>
+  </div>
+</div>
+
+<!-- MODAL SALDAR -->
+<div class="overlay" id="overlay-saldar" onclick="closeIfOutside(event,'saldar')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>Saldar deuda</h2>
+    <p id="saldar-info" style="font-size:13px;color:var(--muted);margin-bottom:16px;"></p>
+    <div class="field"><label>Monto que pagás</label><input type="number" id="s-monto" placeholder="0" inputmode="decimal"/></div>
+    <div class="field">
+      <label>Moneda</label>
+      <div class="chips" id="chips-s-moneda">
+        <div class="chip active" data-val="ARS" onclick="selectChip(this,'s-moneda')" style="color:var(--amber)"><span class="chip-dot" style="background:var(--amber)"></span>ARS</div>
+        <div class="chip" data-val="USD" onclick="selectChip(this,'s-moneda')"><span class="chip-dot" style="background:var(--green)"></span>USD</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>¿De dónde sale?</label>
+      <div class="chips" id="chips-s-origen">
+        <div class="chip active" data-val="Otro lado" onclick="selectChip(this,'s-origen')" style="color:var(--muted)"><span class="chip-dot" style="background:var(--muted)"></span>Otro lado</div>
+        <div class="chip" data-val="Dólares físicos" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--green)"></span>Dólares</div>
+        <div class="chip" data-val="Balanz" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--blue)"></span>Balanz</div>
+        <div class="chip" data-val="Cripto" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--amber)"></span>Cripto</div>
+        <div class="chip" data-val="Marquez obra" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--brown)"></span>Marquez</div>
+        <div class="chip" data-val="Plazo fijo" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--pink)"></span>Plazo fijo</div>
+      </div>
+    </div>
+    <button class="save-btn" id="btn-saldar" onclick="saldarDeuda()">Confirmar pago</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const WORKER_URL = 'https://notion-proxy.msagarraga.workers.dev';
 const DB_AHORROS = '0921211d-2e59-41be-b276-1c3869ed0e9e';
 const DB_DEUDAS  = 'b340f231-848b-475b-96fe-45cbec8cad7f';
+const DB_GASTOS  = 'c7205924-ec27-440b-bbc3-ba9e6bf64a04';
 
 const TIPO_COLORS = {'Dólares físicos':'var(--green)','Balanz':'var(--blue)','Cripto':'var(--amber)','Marquez obra':'var(--brown)','Plazo fijo':'var(--pink)','Otros':'var(--muted)'};
 const TIPO_DIM   = {'Dólares físicos':'var(--green-dim)','Balanz':'var(--blue-dim)','Cripto':'var(--amber-dim)','Marquez obra':'var(--brown-dim)','Plazo fijo':'var(--pink-dim)','Otros':'rgba(138,136,128,0.1)'};
 
 let state = {
-  persona: 'Manuel',
-  tab: 'ahorros',
-  ahorros: [],
-  deudas: [],
-  cotizacion: 1150,
-  cotizacionTipo: 'est.',
-  chips: { 'a-moneda':'ARS', 'a-tipo':null, 'd-moneda':'ARS' }
+  persona: 'Manuel', tab: 'ahorros',
+  ahorros: [], deudas: [], gastos: [],
+  cotizacion: 1150, cotizacionTipo: 'est.',
+  chips: { 'a-moneda':'ARS','a-tipo':null,'d-moneda':'ARS','s-moneda':'ARS','s-origen':'Otro lado','g-moneda':'ARS','g-cat':null,'g-origen':'Otro lado' },
+  editingAhorroId: null, editingDeudaId: null, editingGastoId: null
 };
 
 async function notionReq(path, method='GET', body=null) {
@@ -276,6 +350,18 @@ function parseDeuda(p) {
   return {id:p.id, desc:g('Descripción','title')||'Sin desc', montoARS:g('Monto ARS','number')||0, montoUSD:g('Monto USD','number')||0, aquien:g('A quién','text')||'', persona:g('Persona','select')||'Manuel', mes:g('Mes','select')||'', año:g('Año','select')||'', fecha:g('Fecha','date')||new Date().toISOString().split('T')[0], estado:g('Estado','select')||'Pendiente'};
 }
 
+function parseGasto(p) {
+  const pr = p.properties;
+  const g = (k,t) => {
+    if(!pr[k]) return null;
+    if(t==='title') return pr[k].title?.[0]?.plain_text||'';
+    if(t==='number') return pr[k].number||0;
+    if(t==='select') return pr[k].select?.name||null;
+    if(t==='date') return pr[k].date?.start||null;
+  };
+  return {id:p.id, desc:g('Descripción','title')||'Sin desc', montoARS:g('Monto ARS','number')||0, montoUSD:g('Monto USD','number')||0, categoria:g('Categoría','select')||'Otros', saleDe:g('Sale de','select')||'Otro lado', persona:g('Persona','select')||'Manuel', mes:g('Mes','select')||'', año:g('Año','select')||'', fecha:g('Fecha','date')||new Date().toISOString().split('T')[0]};
+}
+
 async function fetchCotizacion() {
   try {
     const r = await fetch('https://dolarapi.com/v1/dolares/blue');
@@ -290,13 +376,15 @@ async function loadAll() {
   btn.classList.add('loading');
   document.getElementById('last-sync').textContent = 'Sincronizando...';
   try {
-    const [ra, rd] = await Promise.all([
+    const [ra, rd, rg] = await Promise.all([
       notionReq(`/v1/databases/${DB_AHORROS}/query`,'POST',{sorts:[{property:'Fecha',direction:'descending'}]}),
       notionReq(`/v1/databases/${DB_DEUDAS}/query`,'POST',{sorts:[{property:'Fecha',direction:'descending'}]}),
+      notionReq(`/v1/databases/${DB_GASTOS}/query`,'POST',{sorts:[{property:'Fecha',direction:'descending'}]}),
       fetchCotizacion()
     ]);
     state.ahorros = (ra.results||[]).map(parseAhorro);
     state.deudas  = (rd.results||[]).map(parseDeuda);
+    state.gastos  = (rg.results||[]).map(parseGasto);
     const now = new Date();
     document.getElementById('last-sync').textContent = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} · ${state.cotizacionTipo} $${Math.round(state.cotizacion).toLocaleString('es-AR')}`;
     renderAll();
@@ -306,19 +394,22 @@ async function loadAll() {
   } finally { btn.classList.remove('loading'); }
 }
 
-function renderAll() { renderSaldo(); renderTipos(); renderAhorros(); renderDeudas(); }
+function renderAll() { renderSaldo(); renderTipos(); renderAhorros(); renderDeudas(); renderGastos(); }
 
 function renderSaldo() {
   const cotiz = state.cotizacion||1150;
   const ahorros = state.ahorros.filter(a=>a.persona===state.persona);
   const deudas  = state.deudas.filter(d=>d.persona===state.persona && d.estado==='Pendiente');
-  let totalAhorroUSD=0, totalDeudaUSD=0;
+  const gastos  = state.gastos.filter(g=>g.persona===state.persona||g.persona==='Ambos');
+  let totalAhorroUSD=0, totalDeudaUSD=0, totalGastoUSD=0;
   ahorros.forEach(a=>{ totalAhorroUSD+=a.montoUSD||0; totalAhorroUSD+=(a.montoARS||0)/cotiz; });
   deudas.forEach(d=>{ totalDeudaUSD+=d.montoUSD||0; totalDeudaUSD+=(d.montoARS||0)/cotiz; });
-  const neto = totalAhorroUSD - totalDeudaUSD;
-  const pct = Math.min(100,(totalAhorroUSD/10000)*100);
+  gastos.forEach(g=>{ totalGastoUSD+=g.montoUSD||0; totalGastoUSD+=(g.montoARS||0)/cotiz; });
+  const efectivo = totalAhorroUSD - totalGastoUSD;
+  const neto = efectivo - totalDeudaUSD;
+  const pct = Math.min(100,(efectivo/10000)*100);
   const fmt = v=>'u$d '+Math.round(v).toLocaleString('es-AR');
-  document.getElementById('total-ahorros').textContent = fmt(totalAhorroUSD);
+  document.getElementById('total-ahorros').textContent = fmt(efectivo);
   document.getElementById('total-deudas').textContent  = fmt(totalDeudaUSD);
   document.getElementById('total-neto').textContent    = fmt(neto);
   document.getElementById('total-neto').style.color    = neto>=0?'var(--amber)':'var(--red)';
@@ -359,6 +450,7 @@ function renderAhorros() {
         ${a.montoUSD>0?`<div class="entry-usd" style="color:var(--green)">u$d ${Math.round(a.montoUSD).toLocaleString('es-AR')}</div>`:''}
         ${a.montoARS>0?`<div class="entry-ars">$ ${Math.round(a.montoARS).toLocaleString('es-AR')}</div>`:''}
       </div>
+      <button onclick="editAhorro('${a.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;font-size:15px;flex-shrink:0;">✏️</button>
     </div>`;
   }).join('');
 }
@@ -378,7 +470,8 @@ function renderDeudas() {
         ${d.montoUSD>0?`<div class="entry-usd" style="color:${isPend?'var(--red)':'var(--muted)'}">u$d ${Math.round(d.montoUSD).toLocaleString('es-AR')}</div>`:''}
         ${d.montoARS>0?`<div class="entry-ars">$ ${Math.round(d.montoARS).toLocaleString('es-AR')}</div>`:''}
       </div>
-      <span class="entry-badge ${isPend?'badge-pendiente':'badge-pagada'}">${d.estado}</span>
+      ${isPend ? `<button onclick="openSaldar('${d.id}')" style="background:var(--green-dim);border:1px solid var(--green);color:var(--green);border-radius:10px;padding:4px 8px;font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer;flex-shrink:0;white-space:nowrap;">Saldar</button>` : `<span class="entry-badge badge-pagada">Pagada</span>`}
+      <button onclick="editDeuda('${d.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;font-size:15px;flex-shrink:0;">✏️</button>
     </div>`;
   }).join('');
 }
@@ -390,21 +483,237 @@ function setPersona(p) {
   renderAll();
 }
 
-function setTab(t) {
+function setTab(t, e) {
   state.tab = t;
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-  event.target.classList.add('active');
+  if(e) e.target.classList.add('active');
   document.getElementById('panel-ahorros').classList.toggle('hidden', t!=='ahorros');
   document.getElementById('panel-deudas').classList.toggle('hidden', t!=='deudas');
+  document.getElementById('panel-gastos').classList.toggle('hidden', t!=='gastos');
+  document.getElementById('fab-ahorro').style.display = t==='ahorros' ? 'flex' : 'none';
+  document.getElementById('fab-deuda').style.display  = t==='deudas'  ? 'flex' : 'none';
+  document.getElementById('fab-gasto').style.display  = t==='gastos'  ? 'flex' : 'none';
 }
 
 function openModal(type) { document.getElementById('overlay-'+type).classList.add('open'); }
 function closeModal(type) {
   document.getElementById('overlay-'+type).classList.remove('open');
-  if(type==='ahorro'){document.getElementById('a-desc').value='';document.getElementById('a-monto').value='';state.chips['a-tipo']=null;document.querySelectorAll('#chips-a-tipo .chip').forEach(c=>c.classList.remove('active'));}
-  if(type==='deuda'){document.getElementById('d-desc').value='';document.getElementById('d-aquien').value='';document.getElementById('d-monto').value='';}
+  if(type==='ahorro'){
+    document.getElementById('a-desc').value='';document.getElementById('a-monto').value='';
+    state.chips['a-tipo']=null;state.editingAhorroId=null;
+    document.querySelectorAll('#chips-a-tipo .chip').forEach(c=>c.classList.remove('active'));
+    document.querySelectorAll('#chips-a-moneda .chip').forEach(c=>c.classList.remove('active'));
+    document.querySelector('#chips-a-moneda .chip[data-val="ARS"]').classList.add('active');
+    state.chips['a-moneda']='ARS';
+    document.getElementById('btn-save-ahorro').textContent='Guardar ahorro';
+    document.getElementById('btn-save-ahorro').className='save-btn';
+    document.querySelector('#overlay-ahorro h2').textContent='Nuevo ahorro';
+  }
+  if(type==='gasto'){
+    document.getElementById('g-desc').value='';document.getElementById('g-monto').value='';
+    state.editingGastoId=null;
+    document.getElementById('gasto-title').textContent='Nuevo gasto';
+    document.getElementById('btn-save-gasto').textContent='Registrar gasto';
+    document.querySelectorAll('#chips-g-cat .chip').forEach(c=>c.classList.remove('active'));
+    document.querySelectorAll('#chips-g-origen .chip').forEach(c=>c.classList.remove('active'));
+    document.querySelector('#chips-g-origen .chip[data-val="Otro lado"]').classList.add('active');
+    state.chips['g-cat']=null; state.chips['g-origen']='Otro lado';
+  }
+  if(type==='saldar'){
+    document.getElementById('s-monto').value='';
+    state.editingDeudaId=null;
+    document.getElementById('overlay-saldar').classList.remove('open');
+  }
+  if(type==='deuda'){
+    document.getElementById('d-desc').value='';document.getElementById('d-aquien').value='';document.getElementById('d-monto').value='';
+    state.editingDeudaId=null;
+    document.querySelector('#overlay-deuda h2').textContent='Nueva deuda';
+    document.getElementById('btn-save-deuda').textContent='Guardar deuda';
+  }
 }
 function closeIfOutside(e,type){if(e.target===document.getElementById('overlay-'+type))closeModal(type);}
+
+function editAhorro(id) {
+  const a = state.ahorros.find(x=>x.id===id);
+  if(!a) return;
+  state.editingAhorroId = id;
+  document.querySelector('#overlay-ahorro h2').textContent = 'Editar ahorro';
+  document.getElementById('a-desc').value = a.desc;
+  // Set moneda
+  const esUSD = a.montoUSD > 0;
+  document.querySelectorAll('#chips-a-moneda .chip').forEach(c=>c.classList.remove('active'));
+  document.querySelector(`#chips-a-moneda .chip[data-val="${esUSD?'USD':'ARS'}"]`).classList.add('active');
+  state.chips['a-moneda'] = esUSD ? 'USD' : 'ARS';
+  document.getElementById('a-monto').value = esUSD ? a.montoUSD : a.montoARS;
+  // Set tipo
+  document.querySelectorAll('#chips-a-tipo .chip').forEach(c=>c.classList.remove('active'));
+  const tipoChip = document.querySelector(`#chips-a-tipo .chip[data-val="${a.tipo}"]`);
+  if(tipoChip){ tipoChip.classList.add('active'); state.chips['a-tipo']=a.tipo; }
+  document.getElementById('btn-save-ahorro').textContent = 'Actualizar ahorro';
+  document.getElementById('btn-save-ahorro').className = 'save-btn';
+  openModal('ahorro');
+}
+
+function editDeuda(id) {
+  const d = state.deudas.find(x=>x.id===id);
+  if(!d) return;
+  state.editingDeudaId = id;
+  document.querySelector('#overlay-deuda h2').textContent = 'Editar deuda';
+  document.getElementById('d-desc').value = d.desc;
+  document.getElementById('d-aquien').value = d.aquien;
+  const esUSD = d.montoUSD > 0;
+  document.querySelectorAll('#chips-d-moneda .chip').forEach(c=>c.classList.remove('active'));
+  document.querySelector(`#chips-d-moneda .chip[data-val="${esUSD?'USD':'ARS'}"]`).classList.add('active');
+  state.chips['d-moneda'] = esUSD ? 'USD' : 'ARS';
+  document.getElementById('d-monto').value = esUSD ? d.montoUSD : d.montoARS;
+  document.getElementById('btn-save-deuda').textContent = 'Actualizar deuda';
+  openModal('deuda');
+}
+
+function renderGastos() {
+  const sorted = state.gastos.filter(g=>g.persona===state.persona||g.persona==='Ambos').slice(0,20);
+  if(!sorted.length){document.getElementById('historial-gastos').innerHTML='<div class="empty">Sin gastos registrados</div>';return;}
+  const CAT_COLORS = {'Viaje':'var(--blue)','Arreglo/Refacción':'var(--brown)','Compra grande':'var(--pink)','Pago de deuda':'var(--red)','Otros':'var(--muted)'};
+  document.getElementById('historial-gastos').innerHTML = sorted.map(g=>{
+    const color = CAT_COLORS[g.categoria]||'var(--muted)';
+    return `<div class="entry">
+      <div class="entry-dot" style="background:${color}"></div>
+      <div class="entry-info">
+        <div class="entry-desc">${g.desc}</div>
+        <div class="entry-meta">${g.categoria} · Sale de: ${g.saleDe} · ${g.mes} ${g.año}</div>
+      </div>
+      <div class="entry-amounts">
+        ${g.montoUSD>0?`<div class="entry-usd" style="color:${color}">u$d ${Math.round(g.montoUSD).toLocaleString('es-AR')}</div>`:''}
+        ${g.montoARS>0?`<div class="entry-ars">$ ${Math.round(g.montoARS).toLocaleString('es-AR')}</div>`:''}
+      </div>
+      <button onclick="editGasto('${g.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;font-size:15px;">✏️</button>
+    </div>`;
+  }).join('');
+}
+
+function editGasto(id) {
+  const g = state.gastos.find(x=>x.id===id);
+  if(!g) return;
+  state.editingGastoId = id;
+  document.getElementById('gasto-title').textContent = 'Editar gasto';
+  document.getElementById('g-desc').value = g.desc;
+  const esUSD = g.montoUSD > 0;
+  document.querySelectorAll('#chips-g-moneda .chip').forEach(c=>c.classList.remove('active'));
+  document.querySelector(`#chips-g-moneda .chip[data-val="${esUSD?'USD':'ARS'}"]`).classList.add('active');
+  state.chips['g-moneda'] = esUSD?'USD':'ARS';
+  document.getElementById('g-monto').value = esUSD ? g.montoUSD : g.montoARS;
+  document.querySelectorAll('#chips-g-cat .chip').forEach(c=>c.classList.remove('active'));
+  const catChip = document.querySelector(`#chips-g-cat .chip[data-val="${g.categoria}"]`);
+  if(catChip){catChip.classList.add('active'); state.chips['g-cat']=g.categoria;}
+  document.querySelectorAll('#chips-g-origen .chip').forEach(c=>c.classList.remove('active'));
+  const origenChip = document.querySelector(`#chips-g-origen .chip[data-val="${g.saleDe}"]`);
+  if(origenChip){origenChip.classList.add('active'); state.chips['g-origen']=g.saleDe;}
+  document.getElementById('btn-save-gasto').textContent='Actualizar gasto';
+  openModal('gasto');
+}
+
+async function saveGasto() {
+  const desc=document.getElementById('g-desc').value.trim();
+  const monto=parseFloat(document.getElementById('g-monto').value);
+  if(!desc||!monto||!state.chips['g-cat']){showToast('Completá descripción, monto y categoría',true);return;}
+  const btn=document.getElementById('btn-save-gasto');
+  btn.disabled=true; btn.textContent='Guardando...';
+  const esUSD=state.chips['g-moneda']==='USD';
+  const hoy=new Date().toISOString().split('T')[0];
+  const props = {
+    'Descripción':{title:[{text:{content:desc}}]},
+    'Monto ARS':{number:esUSD?0:monto},
+    'Monto USD':{number:esUSD?monto:0},
+    'Categoría':{select:{name:state.chips['g-cat']}},
+    'Sale de':{select:{name:state.chips['g-origen']}},
+    'Persona':{select:{name:state.persona}},
+    'Mes':{select:{name:getMes()}},
+    'Año':{select:{name:getAño()}},
+    'Fecha':{date:{start:hoy}}
+  };
+  try {
+    if(state.editingGastoId) {
+      await notionReq(`/v1/pages/${state.editingGastoId}`,'PATCH',{properties:props});
+      const idx=state.gastos.findIndex(x=>x.id===state.editingGastoId);
+      if(idx>-1) state.gastos[idx]={...state.gastos[idx],desc,montoARS:esUSD?0:monto,montoUSD:esUSD?monto:0,categoria:state.chips['g-cat'],saleDe:state.chips['g-origen']};
+      showToast('✓ Gasto actualizado');
+    } else {
+      await notionReq('/v1/pages','POST',{parent:{database_id:DB_GASTOS},properties:props});
+      state.gastos.unshift({id:Math.random().toString(36).slice(2),desc,montoARS:esUSD?0:monto,montoUSD:esUSD?monto:0,categoria:state.chips['g-cat'],saleDe:state.chips['g-origen'],persona:state.persona,mes:getMes(),año:getAño(),fecha:hoy});
+      showToast('✓ Gasto registrado');
+    }
+    renderAll(); closeModal('gasto');
+  } catch { showToast('Error al guardar',true); }
+  finally { btn.disabled=false; btn.textContent='Registrar gasto'; }
+}
+  const d = state.deudas.find(x=>x.id===id);
+  if(!d) return;
+  state.editingDeudaId = id;
+  const montoActual = d.montoUSD>0 ? `u$d ${Math.round(d.montoUSD).toLocaleString('es-AR')}` : `$ ${Math.round(d.montoARS).toLocaleString('es-AR')}`;
+  document.getElementById('saldar-info').textContent = `Deuda con ${d.aquien}: ${montoActual}. Ingresá cuánto pagás.`;
+  document.getElementById('s-monto').value = '';
+  // Default moneda igual a la deuda
+  const esUSD = d.montoUSD > 0;
+  document.querySelectorAll('#chips-s-moneda .chip').forEach(c=>c.classList.remove('active'));
+  document.querySelector(`#chips-s-moneda .chip[data-val="${esUSD?'USD':'ARS'}"]`).classList.add('active');
+  state.chips['s-moneda'] = esUSD ? 'USD' : 'ARS';
+  document.getElementById('overlay-saldar').classList.add('open');
+}
+
+async function saldarDeuda() {
+  const pago = parseFloat(document.getElementById('s-monto').value);
+  if(!pago || pago <= 0) { showToast('Ingresá un monto válido', true); return; }
+  const d = state.deudas.find(x=>x.id===state.editingDeudaId);
+  if(!d) return;
+  const btn = document.getElementById('btn-saldar');
+  btn.disabled=true; btn.textContent='Procesando...';
+  const esUSD = state.chips['s-moneda']==='USD';
+  const origen = state.chips['s-origen']||'Otro lado';
+  try {
+    const montoActual = esUSD ? d.montoUSD : d.montoARS;
+    const resto = montoActual - pago;
+    if(resto <= 0) {
+      await notionReq(`/v1/pages/${d.id}`,'PATCH',{properties:{'Estado':{select:{name:'Pagada'}},'Monto ARS':{number:0},'Monto USD':{number:0}}});
+      d.estado='Pagada'; d.montoARS=0; d.montoUSD=0;
+      showToast('✓ Deuda saldada completamente');
+    } else {
+      const props = esUSD ? {'Monto USD':{number:resto}} : {'Monto ARS':{number:resto}};
+      await notionReq(`/v1/pages/${d.id}`,'PATCH',{properties:props});
+      if(esUSD) d.montoUSD=resto; else d.montoARS=resto;
+      const restoFmt = esUSD ? `u$d ${Math.round(resto).toLocaleString('es-AR')}` : `$ ${Math.round(resto).toLocaleString('es-AR')}`;
+      showToast(`✓ Pago registrado · Resta ${restoFmt}`);
+    }
+    // Si sale de ahorros → registrar como gasto automáticamente
+    if(origen !== 'Otro lado') {
+      const hoy = new Date().toISOString().split('T')[0];
+      const gProps = {
+        'Descripción':{title:[{text:{content:`Pago deuda: ${d.desc}`}}]},
+        'Monto ARS':{number:esUSD?0:pago}, 'Monto USD':{number:esUSD?pago:0},
+        'Categoría':{select:{name:'Pago de deuda'}},
+        'Sale de':{select:{name:origen}},
+        'Persona':{select:{name:state.persona}},
+        'Mes':{select:{name:getMes()}}, 'Año':{select:{name:getAño()}},
+        'Fecha':{date:{start:hoy}}
+      };
+      await notionReq('/v1/pages','POST',{parent:{database_id:DB_GASTOS},properties:gProps});
+      state.gastos.unshift({id:Math.random().toString(36).slice(2),desc:`Pago deuda: ${d.desc}`,montoARS:esUSD?0:pago,montoUSD:esUSD?pago:0,categoria:'Pago de deuda',saleDe:origen,persona:state.persona,mes:getMes(),año:getAño(),fecha:hoy});
+    }
+    renderAll();
+    document.getElementById('overlay-saldar').classList.remove('open');
+    state.editingDeudaId=null;
+  } catch { showToast('Error al procesar', true); }
+  finally { btn.disabled=false; btn.textContent='Confirmar pago'; }
+}
+  const d = state.deudas.find(x=>x.id===id);
+  if(!d) return;
+  const nuevoEstado = d.estado==='Pendiente' ? 'Pagada' : 'Pendiente';
+  d.estado = nuevoEstado;
+  renderDeudas(); renderSaldo();
+  try {
+    await notionReq(`/v1/pages/${id}`,'PATCH',{properties:{'Estado':{select:{name:nuevoEstado}}}});
+    showToast(`✓ Marcada como ${nuevoEstado}`);
+  } catch { d.estado = d.estado==='Pendiente'?'Pagada':'Pendiente'; renderDeudas(); renderSaldo(); showToast('Error al actualizar',true); }
+}
 
 function selectChip(el,group){
   document.getElementById('chips-'+group).querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
@@ -422,25 +731,31 @@ async function saveAhorro(){
   btn.disabled=true; btn.textContent='Guardando...';
   const esUSD=state.chips['a-moneda']==='USD';
   const hoy=new Date().toISOString().split('T')[0];
+  const props = {
+    'Descripción':{title:[{text:{content:desc}}]},
+    'Monto ARS':{number:esUSD?0:monto},
+    'Monto USD':{number:esUSD?monto:0},
+    'Tipo':{select:{name:state.chips['a-tipo']}},
+    'Persona':{select:{name:state.persona}},
+    'Mes':{select:{name:getMes()}},
+    'Año':{select:{name:getAño()}},
+    'Confirmado':{checkbox:true},
+    'Fecha':{date:{start:hoy}}
+  };
   try {
-    await notionReq('/v1/pages','POST',{
-      parent:{database_id:DB_AHORROS},
-      properties:{
-        'Descripción':{title:[{text:{content:desc}}]},
-        'Monto ARS':{number:esUSD?0:monto},
-        'Monto USD':{number:esUSD?monto:0},
-        'Tipo':{select:{name:state.chips['a-tipo']}},
-        'Persona':{select:{name:state.persona}},
-        'Mes':{select:{name:getMes()}},
-        'Año':{select:{name:getAño()}},
-        'Confirmado':{checkbox:true},
-        'Fecha':{date:{start:hoy}}
-      }
-    });
-    state.ahorros.unshift({id:Math.random().toString(36).slice(2),desc,montoARS:esUSD?0:monto,montoUSD:esUSD?monto:0,tipo:state.chips['a-tipo'],persona:state.persona,mes:getMes(),año:getAño(),fecha:hoy,confirmado:true});
-    renderAll(); closeModal('ahorro'); showToast('✓ Ahorro guardado');
+    if(state.editingAhorroId) {
+      await notionReq(`/v1/pages/${state.editingAhorroId}`,'PATCH',{properties:props});
+      const idx = state.ahorros.findIndex(x=>x.id===state.editingAhorroId);
+      if(idx>-1) state.ahorros[idx] = {...state.ahorros[idx], desc, montoARS:esUSD?0:monto, montoUSD:esUSD?monto:0, tipo:state.chips['a-tipo']};
+      showToast('✓ Ahorro actualizado');
+    } else {
+      await notionReq('/v1/pages','POST',{parent:{database_id:DB_AHORROS},properties:props});
+      state.ahorros.unshift({id:Math.random().toString(36).slice(2),desc,montoARS:esUSD?0:monto,montoUSD:esUSD?monto:0,tipo:state.chips['a-tipo'],persona:state.persona,mes:getMes(),año:getAño(),fecha:hoy,confirmado:true});
+      showToast('✓ Ahorro guardado');
+    }
+    renderAll(); closeModal('ahorro');
   } catch { showToast('Error al guardar',true); }
-  finally { btn.disabled=false; btn.textContent='Guardar ahorro'; }
+  finally { btn.disabled=false; btn.textContent = state.editingAhorroId ? 'Actualizar ahorro' : 'Guardar ahorro'; }
 }
 
 async function saveDeuda(){
@@ -452,25 +767,31 @@ async function saveDeuda(){
   btn.disabled=true; btn.textContent='Guardando...';
   const esUSD=state.chips['d-moneda']==='USD';
   const hoy=new Date().toISOString().split('T')[0];
+  const props = {
+    'Descripción':{title:[{text:{content:desc}}]},
+    'A quién':{rich_text:[{text:{content:aquien}}]},
+    'Monto ARS':{number:esUSD?0:monto},
+    'Monto USD':{number:esUSD?monto:0},
+    'Persona':{select:{name:state.persona}},
+    'Mes':{select:{name:getMes()}},
+    'Año':{select:{name:getAño()}},
+    'Estado':{select:{name:'Pendiente'}},
+    'Fecha':{date:{start:hoy}}
+  };
   try {
-    await notionReq('/v1/pages','POST',{
-      parent:{database_id:DB_DEUDAS},
-      properties:{
-        'Descripción':{title:[{text:{content:desc}}]},
-        'A quién':{rich_text:[{text:{content:aquien}}]},
-        'Monto ARS':{number:esUSD?0:monto},
-        'Monto USD':{number:esUSD?monto:0},
-        'Persona':{select:{name:state.persona}},
-        'Mes':{select:{name:getMes()}},
-        'Año':{select:{name:getAño()}},
-        'Estado':{select:{name:'Pendiente'}},
-        'Fecha':{date:{start:hoy}}
-      }
-    });
-    state.deudas.unshift({id:Math.random().toString(36).slice(2),desc,aquien,montoARS:esUSD?0:monto,montoUSD:esUSD?monto:0,persona:state.persona,mes:getMes(),año:getAño(),fecha:hoy,estado:'Pendiente'});
-    renderAll(); closeModal('deuda'); showToast('✓ Deuda guardada');
+    if(state.editingDeudaId) {
+      await notionReq(`/v1/pages/${state.editingDeudaId}`,'PATCH',{properties:props});
+      const idx = state.deudas.findIndex(x=>x.id===state.editingDeudaId);
+      if(idx>-1) state.deudas[idx] = {...state.deudas[idx], desc, aquien, montoARS:esUSD?0:monto, montoUSD:esUSD?monto:0};
+      showToast('✓ Deuda actualizada');
+    } else {
+      await notionReq('/v1/pages','POST',{parent:{database_id:DB_DEUDAS},properties:props});
+      state.deudas.unshift({id:Math.random().toString(36).slice(2),desc,aquien,montoARS:esUSD?0:monto,montoUSD:esUSD?monto:0,persona:state.persona,mes:getMes(),año:getAño(),fecha:hoy,estado:'Pendiente'});
+      showToast('✓ Deuda guardada');
+    }
+    renderAll(); closeModal('deuda');
   } catch { showToast('Error al guardar',true); }
-  finally { btn.disabled=false; btn.textContent='Guardar deuda'; }
+  finally { btn.disabled=false; btn.textContent = state.editingDeudaId ? 'Actualizar deuda' : 'Guardar deuda'; }
 }
 
 function showToast(msg,error=false){
