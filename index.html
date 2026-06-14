@@ -145,6 +145,13 @@
   </div>
   <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
   <div class="progress-label" id="progress-label">Objetivo u$d 10.000 · 0%</div>
+  <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+    <span style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);">Objetivo</span>
+    <div id="objetivo-display" onclick="editObjetivo()" style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--green);cursor:pointer;display:flex;align-items:center;gap:6px;">
+      u$d <span id="objetivo-valor">10.000</span> <span style="font-size:12px;color:var(--muted);">✏️</span>
+    </div>
+    <input id="objetivo-input" type="number" placeholder="10000" onblur="saveObjetivo()" onkeydown="if(event.key==='Enter')saveObjetivo()" style="display:none;background:var(--surface2);border:1px solid var(--green);border-radius:8px;padding:4px 10px;color:var(--text);font-size:16px;width:110px;font-family:'DM Sans',sans-serif;outline:none;" />
+  </div>
 </div>
 
 <!-- TABS -->
@@ -397,6 +404,36 @@ async function loadAll() {
 
 function renderAll() { renderSaldo(); renderTipos(); renderAhorros(); renderDeudas(); renderGastos(); }
 
+function getObjetivo() {
+  return parseFloat(localStorage.getItem(`objetivo_${state.persona}`)) || 10000;
+}
+
+function updateObjetivoDisplay() {
+  const val = getObjetivo();
+  document.getElementById('objetivo-valor').textContent = Math.round(val).toLocaleString('es-AR');
+}
+
+function editObjetivo() {
+  const input = document.getElementById('objetivo-input');
+  const display = document.getElementById('objetivo-display');
+  input.value = getObjetivo();
+  display.style.display = 'none';
+  input.style.display = 'block';
+  input.focus(); input.select();
+}
+
+function saveObjetivo() {
+  const input = document.getElementById('objetivo-input');
+  const val = parseFloat(input.value);
+  if(val > 0) {
+    localStorage.setItem(`objetivo_${state.persona}`, val);
+    showToast(`✓ Objetivo ${state.persona}: u$d ${Math.round(val).toLocaleString('es-AR')}`);
+  }
+  document.getElementById('objetivo-display').style.display = 'flex';
+  input.style.display = 'none';
+  renderSaldo();
+}
+
 function renderSaldo() {
   const cotiz = state.cotizacion||1150;
   const ahorros = state.ahorros.filter(a=>a.persona===state.persona);
@@ -408,14 +445,16 @@ function renderSaldo() {
   gastos.forEach(g=>{ totalGastoUSD+=g.montoUSD||0; totalGastoUSD+=(g.montoARS||0)/cotiz; });
   const ahorrosNeto = totalAhorroUSD - totalGastoUSD;
   const neto = ahorrosNeto - totalDeudaUSD;
-  const pct = Math.min(100,(ahorrosNeto/10000)*100);
+  const objetivo = getObjetivo();
+  const pct = Math.min(100,(ahorrosNeto/objetivo)*100);
   const fmt = v=>'u$d '+Math.round(Math.abs(v)).toLocaleString('es-AR');
   document.getElementById('total-ahorros').textContent = fmt(ahorrosNeto);
   document.getElementById('total-deudas').textContent  = fmt(totalDeudaUSD);
   document.getElementById('total-neto').textContent    = (neto<0?'−':'')+fmt(neto);
   document.getElementById('total-neto').style.color    = neto>=0?'var(--amber)':'var(--red)';
   document.getElementById('progress-fill').style.width = Math.max(0,pct).toFixed(1)+'%';
-  document.getElementById('progress-label').textContent = `Objetivo u$d 10.000 · ${Math.max(0,pct).toFixed(1)}%`;
+  document.getElementById('progress-label').textContent = `${Math.max(0,pct).toFixed(1)}% del objetivo`;
+  updateObjetivoDisplay();
 }
 
 function renderTipos() {
@@ -502,6 +541,7 @@ function setPersona(p) {
   state.persona = p;
   document.querySelectorAll('.persona-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector(`.persona-btn.${p.toLowerCase()}`).classList.add('active');
+  updateObjetivoDisplay();
   renderAll();
 }
 
