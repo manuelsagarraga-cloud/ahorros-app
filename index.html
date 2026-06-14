@@ -135,11 +135,11 @@
       <div class="pill-val" id="total-ahorros">u$d —</div>
     </div>
     <div class="saldo-pill deudas">
-      <div class="pill-label">Deudas</div>
+      <div class="pill-label">Debo</div>
       <div class="pill-val" id="total-deudas">u$d —</div>
     </div>
     <div class="saldo-pill neto">
-      <div class="pill-label">Neto</div>
+      <div class="pill-label">Balance</div>
       <div class="pill-val" id="total-neto">u$d —</div>
     </div>
   </div>
@@ -406,16 +406,16 @@ function renderSaldo() {
   ahorros.forEach(a=>{ totalAhorroUSD+=a.montoUSD||0; totalAhorroUSD+=(a.montoARS||0)/cotiz; });
   deudas.forEach(d=>{ totalDeudaUSD+=d.montoUSD||0; totalDeudaUSD+=(d.montoARS||0)/cotiz; });
   gastos.forEach(g=>{ totalGastoUSD+=g.montoUSD||0; totalGastoUSD+=(g.montoARS||0)/cotiz; });
-  const efectivo = totalAhorroUSD - totalGastoUSD;
-  const neto = efectivo - totalDeudaUSD;
-  const pct = Math.min(100,(efectivo/10000)*100);
-  const fmt = v=>'u$d '+Math.round(v).toLocaleString('es-AR');
-  document.getElementById('total-ahorros').textContent = fmt(efectivo);
+  const ahorrosNeto = totalAhorroUSD - totalGastoUSD;
+  const neto = ahorrosNeto - totalDeudaUSD;
+  const pct = Math.min(100,(ahorrosNeto/10000)*100);
+  const fmt = v=>'u$d '+Math.round(Math.abs(v)).toLocaleString('es-AR');
+  document.getElementById('total-ahorros').textContent = fmt(ahorrosNeto);
   document.getElementById('total-deudas').textContent  = fmt(totalDeudaUSD);
-  document.getElementById('total-neto').textContent    = fmt(neto);
+  document.getElementById('total-neto').textContent    = (neto<0?'−':'')+fmt(neto);
   document.getElementById('total-neto').style.color    = neto>=0?'var(--amber)':'var(--red)';
-  document.getElementById('progress-fill').style.width = pct.toFixed(1)+'%';
-  document.getElementById('progress-label').textContent = `Objetivo u$d 10.000 · ${pct.toFixed(1)}%`;
+  document.getElementById('progress-fill').style.width = Math.max(0,pct).toFixed(1)+'%';
+  document.getElementById('progress-label').textContent = `Objetivo u$d 10.000 · ${Math.max(0,pct).toFixed(1)}%`;
 }
 
 function renderTipos() {
