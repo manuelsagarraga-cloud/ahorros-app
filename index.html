@@ -419,21 +419,42 @@ function renderSaldo() {
 }
 
 function renderTipos() {
-  const cotiz = state.cotizacion||1150;
   const tipos = ['Dólares físicos','Balanz','Cripto','Marquez obra','Plazo fijo','Otros'];
-  const usd={}, ars={};
-  tipos.forEach(t=>{usd[t]=0;ars[t]=0;});
+  const usd={}, ars={}, gastoUsd={}, gastoArs={};
+  tipos.forEach(t=>{ usd[t]=0; ars[t]=0; gastoUsd[t]=0; gastoArs[t]=0; });
+
   state.ahorros.filter(a=>a.persona===state.persona).forEach(a=>{
     const t=a.tipo||'Otros'; usd[t]+=(a.montoUSD||0); ars[t]+=(a.montoARS||0);
   });
-  document.getElementById('tipos-grid').innerHTML = tipos.map(t=>`
-    <div class="tipo-card" style="background:${TIPO_DIM[t]};border-color:${TIPO_COLORS[t]}33">
+  state.gastos.filter(g=>g.persona===state.persona||g.persona==='Ambos').forEach(g=>{
+    const t=g.saleDe||'Otro lado';
+    if(gastoUsd[t]!==undefined){ gastoUsd[t]+=(g.montoUSD||0); gastoArs[t]+=(g.montoARS||0); }
+  });
+
+  document.getElementById('tipos-grid').innerHTML = tipos.map(t=>{
+    const netUSD = usd[t] - gastoUsd[t];
+    const netARS = ars[t] - gastoArs[t];
+    const hasGasto = gastoUsd[t]>0 || gastoArs[t]>0;
+    const hasData = usd[t]>0 || ars[t]>0;
+    const detalleId = `detalle-${t.replace(/\s/g,'-')}`;
+    return `<div class="tipo-card" style="background:${TIPO_DIM[t]};border-color:${TIPO_COLORS[t]}33" onclick="toggleDetalle('${detalleId}')">
       <div class="tipo-dot" style="background:${TIPO_COLORS[t]}"></div>
       <div class="tipo-name">${t}</div>
-      ${usd[t]>0?`<div class="tipo-usd" style="color:${TIPO_COLORS[t]}">u$d ${Math.round(usd[t]).toLocaleString('es-AR')}</div>`:''}
-      ${ars[t]>0?`<div class="tipo-ars">$ ${Math.round(ars[t]).toLocaleString('es-AR')}</div>`:''}
-      ${usd[t]===0&&ars[t]===0?`<div class="tipo-usd" style="color:var(--muted)">—</div>`:''}
-    </div>`).join('');
+      ${hasData ? `
+        ${netUSD!==0||usd[t]>0 ? `<div class="tipo-usd" style="color:${TIPO_COLORS[t]}">u$d ${Math.round(netUSD).toLocaleString('es-AR')}</div>` : ''}
+        ${netARS!==0||ars[t]>0 ? `<div class="tipo-ars">$ ${Math.round(netARS).toLocaleString('es-AR')}</div>` : ''}
+        ${hasGasto ? `<div id="${detalleId}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);">
+          <div>Ahorro: ${usd[t]>0?'u$d '+Math.round(usd[t]).toLocaleString('es-AR'):'$ '+Math.round(ars[t]).toLocaleString('es-AR')}</div>
+          <div style="color:var(--red)">− Gastado: ${gastoUsd[t]>0?'u$d '+Math.round(gastoUsd[t]).toLocaleString('es-AR'):'$ '+Math.round(gastoArs[t]).toLocaleString('es-AR')}</div>
+        </div>` : ''}
+      ` : `<div class="tipo-usd" style="color:var(--muted)">—</div>`}
+    </div>`;
+  }).join('');
+}
+
+function toggleDetalle(id) {
+  const el = document.getElementById(id);
+  if(el) el.style.display = el.style.display==='none' ? 'block' : 'none';
 }
 
 function renderAhorros() {
