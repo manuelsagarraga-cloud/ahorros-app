@@ -201,7 +201,7 @@
         <div class="chip" data-val="Dólares físicos" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--green)"></span>Dólares</div>
         <div class="chip" data-val="Balanz" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--blue)"></span>Balanz</div>
         <div class="chip" data-val="Cripto" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--amber)"></span>Cripto</div>
-        <div class="chip" data-val="Marquez obra" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--brown)"></span>Marquez</div>
+        <div class="chip" data-val="Banco" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--brown)"></span>Banco</div>
         <div class="chip" data-val="Plazo fijo" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--pink)"></span>Plazo fijo</div>
         <div class="chip" data-val="Otros" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--muted)"></span>Otros</div>
       </div>
@@ -259,7 +259,7 @@
         <div class="chip" data-val="Dólares físicos" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--green)"></span>Dólares</div>
         <div class="chip" data-val="Balanz" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--blue)"></span>Balanz</div>
         <div class="chip" data-val="Cripto" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--amber)"></span>Cripto</div>
-        <div class="chip" data-val="Marquez obra" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--brown)"></span>Marquez</div>
+        <div class="chip" data-val="Banco" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--brown)"></span>Banco</div>
         <div class="chip" data-val="Plazo fijo" onclick="selectChip(this,'g-origen')"><span class="chip-dot" style="background:var(--pink)"></span>Plazo fijo</div>
       </div>
     </div>
@@ -288,7 +288,7 @@
         <div class="chip" data-val="Dólares físicos" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--green)"></span>Dólares</div>
         <div class="chip" data-val="Balanz" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--blue)"></span>Balanz</div>
         <div class="chip" data-val="Cripto" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--amber)"></span>Cripto</div>
-        <div class="chip" data-val="Marquez obra" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--brown)"></span>Marquez</div>
+        <div class="chip" data-val="Banco" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--brown)"></span>Banco</div>
         <div class="chip" data-val="Plazo fijo" onclick="selectChip(this,'s-origen')"><span class="chip-dot" style="background:var(--pink)"></span>Plazo fijo</div>
       </div>
     </div>
@@ -304,8 +304,8 @@ const DB_AHORROS = '0921211d-2e59-41be-b276-1c3869ed0e9e';
 const DB_DEUDAS  = 'b340f231-848b-475b-96fe-45cbec8cad7f';
 const DB_GASTOS  = 'c7205924-ec27-440b-bbc3-ba9e6bf64a04';
 
-const TIPO_COLORS = {'Dólares físicos':'var(--green)','Balanz':'var(--blue)','Cripto':'var(--amber)','Marquez obra':'var(--brown)','Plazo fijo':'var(--pink)','Otros':'var(--muted)'};
-const TIPO_DIM   = {'Dólares físicos':'var(--green-dim)','Balanz':'var(--blue-dim)','Cripto':'var(--amber-dim)','Marquez obra':'var(--brown-dim)','Plazo fijo':'var(--pink-dim)','Otros':'rgba(138,136,128,0.1)'};
+const TIPO_COLORS = {'Dólares físicos':'var(--green)','Balanz':'var(--blue)','Cripto':'var(--amber)','Banco':'var(--brown)','Plazo fijo':'var(--pink)','Otros':'var(--muted)'};
+const TIPO_DIM   = {'Dólares físicos':'var(--green-dim)','Balanz':'var(--blue-dim)','Cripto':'var(--amber-dim)','Banco':'var(--brown-dim)','Plazo fijo':'var(--pink-dim)','Otros':'rgba(138,136,128,0.1)'};
 
 let state = {
   persona: 'Manuel', tab: 'ahorros',
@@ -419,7 +419,7 @@ function renderSaldo() {
 }
 
 function renderTipos() {
-  const tipos = ['Dólares físicos','Balanz','Cripto','Marquez obra','Plazo fijo','Otros'];
+  const tipos = ['Dólares físicos','Balanz','Cripto','Banco','Plazo fijo','Otros'];
   const usd={}, ars={}, gastoUsd={}, gastoArs={};
   tipos.forEach(t=>{ usd[t]=0; ars[t]=0; gastoUsd[t]=0; gastoArs[t]=0; });
 
