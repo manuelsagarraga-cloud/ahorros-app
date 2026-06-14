@@ -707,6 +707,8 @@ async function saldarDeuda() {
   } catch { showToast('Error al procesar', true); }
   finally { btn.disabled=false; btn.textContent='Confirmar pago'; }
 }
+
+async function toggleDeudaEstado(id) {
   const d = state.deudas.find(x=>x.id===id);
   if(!d) return;
   const nuevoEstado = d.estado==='Pendiente' ? 'Pagada' : 'Pendiente';
