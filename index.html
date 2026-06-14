@@ -36,6 +36,7 @@
   .persona-btn.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.4);}
   .persona-btn.manuel.active{color:var(--blue);}
   .persona-btn.flor.active{color:var(--pink);}
+  .persona-btn.juntos.active{color:var(--green);}
 
   /* SALDO NETO */
   .saldo-card{margin:16px 24px 0;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;}
@@ -122,6 +123,7 @@
   <div class="persona-toggle">
     <button class="persona-btn manuel active" onclick="setPersona('Manuel')">Manuel</button>
     <button class="persona-btn flor" onclick="setPersona('Flor')">Flor</button>
+    <button class="persona-btn juntos" onclick="setPersona('Ambos')">🏠 Juntos</button>
   </div>
   <p class="subtitle" style="margin-top:10px" id="last-sync">Conectando...</p>
 </div>
@@ -211,6 +213,14 @@
         <div class="chip" data-val="Banco" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--brown)"></span>Banco</div>
         <div class="chip" data-val="Plazo fijo" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--pink)"></span>Plazo fijo</div>
         <div class="chip" data-val="Otros" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--muted)"></span>Otros</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Persona</label>
+      <div class="chips" id="chips-a-persona">
+        <div class="chip active" data-val="Manuel" onclick="selectChip(this,'a-persona')" style="color:var(--blue)"><span class="chip-dot" style="background:var(--blue)"></span>Manuel</div>
+        <div class="chip" data-val="Flor" onclick="selectChip(this,'a-persona')"><span class="chip-dot" style="background:var(--pink)"></span>Flor</div>
+        <div class="chip" data-val="Ambos" onclick="selectChip(this,'a-persona')"><span class="chip-dot" style="background:var(--green)"></span>Juntos</div>
       </div>
     </div>
     <button class="save-btn" id="btn-save-ahorro" onclick="saveAhorro()">Guardar ahorro</button>
@@ -318,7 +328,7 @@ let state = {
   persona: 'Manuel', tab: 'ahorros',
   ahorros: [], deudas: [], gastos: [],
   cotizacion: 1150, cotizacionTipo: 'est.',
-  chips: { 'a-moneda':'ARS','a-tipo':null,'d-moneda':'ARS','s-moneda':'ARS','s-origen':'Otro lado','g-moneda':'ARS','g-cat':null,'g-origen':'Otro lado' },
+  chips: { 'a-moneda':'ARS','a-tipo':null,'a-persona':'Manuel','d-moneda':'ARS','s-moneda':'ARS','s-origen':'Otro lado','g-moneda':'ARS','g-cat':null,'g-origen':'Otro lado' },
   editingAhorroId: null, editingDeudaId: null, editingGastoId: null
 };
 
@@ -436,9 +446,9 @@ function saveObjetivo() {
 
 function renderSaldo() {
   const cotiz = state.cotizacion||1150;
-  const ahorros = state.ahorros.filter(a=>a.persona===state.persona);
-  const deudas  = state.deudas.filter(d=>d.persona===state.persona && d.estado==='Pendiente');
-  const gastos  = state.gastos.filter(g=>g.persona===state.persona||g.persona==='Ambos');
+  const ahorros = state.ahorros.filter(a=> state.persona==='Ambos' ? a.persona==='Ambos' : (a.persona===state.persona));
+  const deudas  = state.deudas.filter(d=> (state.persona==='Ambos' ? d.persona==='Ambos' : d.persona===state.persona) && d.estado==='Pendiente');
+  const gastos  = state.gastos.filter(g=> state.persona==='Ambos' ? g.persona==='Ambos' : (g.persona===state.persona||g.persona==='Ambos'));
   let totalAhorroUSD=0, totalDeudaUSD=0, totalGastoUSD=0;
   ahorros.forEach(a=>{ totalAhorroUSD+=a.montoUSD||0; totalAhorroUSD+=(a.montoARS||0)/cotiz; });
   deudas.forEach(d=>{ totalDeudaUSD+=d.montoUSD||0; totalDeudaUSD+=(d.montoARS||0)/cotiz; });
@@ -462,7 +472,7 @@ function renderTipos() {
   const usd={}, ars={}, gastoUsd={}, gastoArs={};
   tipos.forEach(t=>{ usd[t]=0; ars[t]=0; gastoUsd[t]=0; gastoArs[t]=0; });
 
-  state.ahorros.filter(a=>a.persona===state.persona).forEach(a=>{
+  state.ahorros.filter(a=> state.persona==='Ambos' ? a.persona==='Ambos' : a.persona===state.persona).forEach(a=>{
     const t=a.tipo||'Otros'; usd[t]+=(a.montoUSD||0); ars[t]+=(a.montoARS||0);
   });
   state.gastos.filter(g=>g.persona===state.persona||g.persona==='Ambos').forEach(g=>{
@@ -497,7 +507,7 @@ function toggleDetalle(id) {
 }
 
 function renderAhorros() {
-  const sorted = state.ahorros.filter(a=>a.persona===state.persona).slice(0,20);
+  const sorted = state.ahorros.filter(a=> state.persona==='Ambos' ? a.persona==='Ambos' : a.persona===state.persona).slice(0,20);
   if(!sorted.length){document.getElementById('historial-ahorros').innerHTML='<div class="empty">Sin ahorros registrados</div>';return;}
   document.getElementById('historial-ahorros').innerHTML = sorted.map(a=>{
     const color=TIPO_COLORS[a.tipo]||'var(--muted)';
@@ -517,7 +527,7 @@ function renderAhorros() {
 }
 
 function renderDeudas() {
-  const sorted = state.deudas.filter(d=>d.persona===state.persona).slice(0,20);
+  const sorted = state.deudas.filter(d=> state.persona==='Ambos' ? d.persona==='Ambos' : d.persona===state.persona).slice(0,20);
   if(!sorted.length){document.getElementById('historial-deudas').innerHTML='<div class="empty">Sin deudas registradas</div>';return;}
   document.getElementById('historial-deudas').innerHTML = sorted.map(d=>{
     const isPend = d.estado==='Pendiente';
@@ -540,7 +550,8 @@ function renderDeudas() {
 function setPersona(p) {
   state.persona = p;
   document.querySelectorAll('.persona-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelector(`.persona-btn.${p.toLowerCase()}`).classList.add('active');
+  const cls = p==='Ambos' ? 'juntos' : p.toLowerCase();
+  document.querySelector(`.persona-btn.${cls}`).classList.add('active');
   updateObjetivoDisplay();
   renderAll();
 }
@@ -557,7 +568,16 @@ function setTab(t, e) {
   document.getElementById('fab-gasto').style.display  = t==='gastos'  ? 'flex' : 'none';
 }
 
-function openModal(type) { document.getElementById('overlay-'+type).classList.add('open'); }
+function openModal(type) {
+  // Pre-select current persona in ahorro modal
+  if(type==='ahorro') {
+    const p = state.persona;
+    document.querySelectorAll('#chips-a-persona .chip').forEach(c=>c.classList.remove('active'));
+    const chip = document.querySelector(`#chips-a-persona .chip[data-val="${p}"]`);
+    if(chip){ chip.classList.add('active'); state.chips['a-persona']=p; }
+  }
+  document.getElementById('overlay-'+type).classList.add('open');
+}
 function closeModal(type) {
   document.getElementById('overlay-'+type).classList.remove('open');
   if(type==='ahorro'){
@@ -755,7 +775,7 @@ async function saldarDeuda() {
         'Monto ARS':{number:esUSD?0:pago}, 'Monto USD':{number:esUSD?pago:0},
         'Categoría':{select:{name:'Pago de deuda'}},
         'Sale de':{select:{name:origen}},
-        'Persona':{select:{name:state.persona}},
+    'Persona':{select:{name:state.chips['a-persona']||state.persona}},
         'Mes':{select:{name:getMes()}}, 'Año':{select:{name:getAño()}},
         'Fecha':{date:{start:hoy}}
       };
