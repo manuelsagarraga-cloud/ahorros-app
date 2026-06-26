@@ -201,7 +201,7 @@
 <!-- FABs -->
 <div class="fab-area">
   <button class="fab" id="fab-ahorro" onclick="openModal('ahorro')"><span>+</span> Ahorro</button>
-  <button class="fab deuda" id="fab-deuda" onclick="openModal('deuda')" style="background:var(--red)"><span>+</span> Deuda</button>
+  <button class="fab deuda" id="fab-deuda" onclick="openModal('deuda')" style="background:var(--red);display:none"><span>+</span> Deuda</button>
   <button class="fab" id="fab-gasto" onclick="openModal('gasto')" style="background:var(--amber);box-shadow:0 8px 32px rgba(203,171,126,0.25);display:none"><span>+</span> Gasto</button>
 </div>
 
@@ -696,7 +696,7 @@ function editDeuda(id) {
 }
 
 function renderGastos() {
-  const sorted = state.gastos.filter(g=>g.persona===state.persona||g.persona==='Ambos').slice(0,20);
+  const sorted = state.gastos.filter(g=> state.persona==='Ambos' ? g.persona==='Ambos' : g.persona===state.persona).slice(0,20);
   if(!sorted.length){document.getElementById('historial-gastos').innerHTML='<div class="empty">Sin gastos registrados</div>';return;}
   const CAT_COLORS = {'Viaje':'var(--blue)','Arreglo/Refacción':'var(--brown)','Compra grande':'var(--pink)','Pago de deuda':'var(--red)','Otros':'var(--muted)'};
   document.getElementById('historial-gastos').innerHTML = sorted.map(g=>{
