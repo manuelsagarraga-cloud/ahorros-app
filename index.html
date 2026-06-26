@@ -480,20 +480,24 @@ function saveObjetivo() {
 
 function renderSaldo() {
   const cotiz = state.cotizacion||1150;
-  const ahorros = state.ahorros.filter(a=> state.persona==='Ambos' ? a.persona==='Ambos' : (a.persona===state.persona));
+  const ahorros = state.ahorros.filter(a=> (state.persona==='Ambos' ? a.persona==='Ambos' : a.persona===state.persona) && !a.desc.startsWith('↓ Gasto:'));
   const deudas  = state.deudas.filter(d=> (state.persona==='Ambos' ? d.persona==='Ambos' : d.persona===state.persona) && d.estado==='Pendiente');
-  let totalDispUSD=0, totalInvUSD=0, totalDeudaUSD=0;
+  const gastos  = state.gastos.filter(g=> (state.persona==='Ambos' ? g.persona==='Ambos' : g.persona===state.persona) && (g.saleDe||'Otro lado')!=='Otro lado');
+  let totalDispUSD=0, totalInvUSD=0, totalDeudaUSD=0, totalGastoUSD=0;
   ahorros.forEach(a=>{
     const usd = (a.montoUSD||0) + (a.montoARS||0)/cotiz;
     if(a.disponibilidad==='Invertido') totalInvUSD+=usd; else totalDispUSD+=usd;
   });
+  gastos.forEach(g=>{ totalGastoUSD+=(g.montoUSD||0)+(g.montoARS||0)/cotiz; });
+  totalDispUSD -= totalGastoUSD;
   deudas.forEach(d=>{ totalDeudaUSD+=d.montoUSD||0; totalDeudaUSD+=(d.montoARS||0)/cotiz; });
   const totalAhorroUSD = totalDispUSD + totalInvUSD;
   const neto = totalAhorroUSD - totalDeudaUSD;
   const objetivo = getObjetivo();
   const pct = Math.min(100,(totalAhorroUSD/objetivo)*100);
   const fmt = v=>'u$d '+Math.round(Math.abs(v)).toLocaleString('es-AR');
-  document.getElementById('total-disponible').textContent = fmt(totalDispUSD);
+  document.getElementById('total-disponible').textContent = (totalDispUSD<0?'−':'')+fmt(totalDispUSD);
+  document.getElementById('total-disponible').style.color = totalDispUSD<0?'var(--red)':'var(--green)';
   document.getElementById('total-invertido').textContent  = fmt(totalInvUSD);
   document.getElementById('total-deudas').textContent     = fmt(totalDeudaUSD);
   document.getElementById('total-neto').textContent       = (neto<0?'−':'')+fmt(neto);
@@ -505,30 +509,33 @@ function renderSaldo() {
 
 function renderTipos() {
   const tipos = ['Dólares físicos','Balanz','Cripto','Banco','Plazo fijo','Otros'];
-  const usd={}, ars={};
-  tipos.forEach(t=>{ usd[t]=0; ars[t]=0; });
+  const usd={}, ars={}, gastoUsd={}, gastoArs={};
+  tipos.forEach(t=>{ usd[t]=0; ars[t]=0; gastoUsd[t]=0; gastoArs[t]=0; });
 
-  state.ahorros.filter(a=> state.persona==='Ambos' ? a.persona==='Ambos' : a.persona===state.persona).forEach(a=>{
-    const t=a.tipo||'Otros'; usd[t]+=(a.montoUSD||0); ars[t]+=(a.montoARS||0);
-  });
+  // Ahorros reales (excluir movimientos negativos auto-generados por gastos)
+  state.ahorros
+    .filter(a=> (state.persona==='Ambos' ? a.persona==='Ambos' : a.persona===state.persona) && !a.desc.startsWith('↓ Gasto:'))
+    .forEach(a=>{ const t=a.tipo||'Otros'; usd[t]+=(a.montoUSD||0); ars[t]+=(a.montoARS||0); });
+
+  // Restar gastos con saleDe específico
+  state.gastos
+    .filter(g=> (state.persona==='Ambos' ? g.persona==='Ambos' : g.persona===state.persona) && (g.saleDe||'Otro lado')!=='Otro lado')
+    .forEach(g=>{ const t=g.saleDe; if(gastoUsd[t]!==undefined){ gastoUsd[t]+=(g.montoUSD||0); gastoArs[t]+=(g.montoARS||0); } });
 
   document.getElementById('tipos-grid').innerHTML = tipos.map(t=>{
-    const hasData = usd[t]!==0 || ars[t]!==0;
-    const isNeg = usd[t]<0 || ars[t]<0;
+    const netUSD = usd[t] - gastoUsd[t];
+    const netARS = ars[t] - gastoArs[t];
+    const hasData = usd[t]!==0 || ars[t]!==0 || gastoUsd[t]!==0 || gastoArs[t]!==0;
+    const isNeg = netUSD<0 || netARS<0;
     return `<div class="tipo-card" style="background:${TIPO_DIM[t]};border-color:${TIPO_COLORS[t]}33">
       <div class="tipo-dot" style="background:${TIPO_COLORS[t]}"></div>
       <div class="tipo-name">${t}</div>
       ${hasData ? `
-        ${usd[t]!==0 ? `<div class="tipo-usd" style="color:${isNeg?'var(--red)':TIPO_COLORS[t]}">${usd[t]<0?'−':''}u$d ${Math.round(Math.abs(usd[t])).toLocaleString('es-AR')}</div>` : ''}
-        ${ars[t]!==0 ? `<div class="tipo-ars">${ars[t]<0?'−':''}$ ${Math.round(Math.abs(ars[t])).toLocaleString('es-AR')}</div>` : ''}
+        ${netUSD!==0||usd[t]!==0 ? `<div class="tipo-usd" style="color:${isNeg?'var(--red)':TIPO_COLORS[t]}">${netUSD<0?'−':''}u$d ${Math.round(Math.abs(netUSD)).toLocaleString('es-AR')}</div>` : ''}
+        ${netARS!==0||ars[t]!==0 ? `<div class="tipo-ars">${netARS<0?'−':''}$ ${Math.round(Math.abs(netARS)).toLocaleString('es-AR')}</div>` : ''}
       ` : `<div class="tipo-usd" style="color:var(--muted)">—</div>`}
     </div>`;
   }).join('');
-}
-
-function toggleDetalle(id) {
-  const el = document.getElementById(id);
-  if(el) el.style.display = el.style.display==='none' ? 'block' : 'none';
 }
 
 function renderAhorros() {
