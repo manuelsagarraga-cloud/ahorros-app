@@ -41,7 +41,10 @@
   /* SALDO NETO */
   .saldo-card{margin:16px 24px 0;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;}
   .saldo-label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;}
-  .saldo-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+  .saldo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+  .del-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px 6px;font-size:14px;flex-shrink:0;border-radius:8px;transition:all 0.15s;}
+  .del-btn:hover{background:var(--red-dim);color:var(--red);}
+  .disp-badge{font-size:9px;padding:2px 6px;border-radius:6px;font-weight:500;}
   .saldo-pill{background:var(--surface2);border-radius:12px;padding:10px 12px;}
   .saldo-pill .pill-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;}
   .saldo-pill .pill-val{font-family:'DM Serif Display',serif;font-size:17px;line-height:1.1;}
@@ -110,7 +113,9 @@
   .toast.error{border-color:var(--red);color:var(--red);}
   .empty{text-align:center;color:var(--muted);font-size:14px;padding:32px 0;}
   .loading-state{text-align:center;color:var(--muted);font-size:13px;padding:24px 0;}
-  .hidden{display:none;}
+  .setup-banner{margin:12px 24px 0;background:var(--amber-dim);border:1px solid var(--amber);border-radius:14px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .setup-banner p{font-size:12px;color:var(--amber);line-height:1.4;flex:1;}
+  .setup-btn-inline{background:var(--amber);color:#0f0f0e;border:none;border-radius:10px;padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -128,13 +133,23 @@
   <p class="subtitle" style="margin-top:10px" id="last-sync">Conectando...</p>
 </div>
 
+<!-- SETUP BANNER -->
+<div class="setup-banner" id="setup-banner" style="display:none">
+  <p>⚙️ Falta agregar la propiedad <strong>Disponibilidad</strong> en tu base de Ahorros en Notion.</p>
+  <button class="setup-btn-inline" id="setup-btn" onclick="setupNotion()">Configurar</button>
+</div>
+
 <!-- SALDO NETO -->
 <div class="saldo-card">
   <div class="saldo-label">Resumen</div>
   <div class="saldo-grid">
-    <div class="saldo-pill ahorros">
-      <div class="pill-label">Ahorros</div>
-      <div class="pill-val" id="total-ahorros">u$d —</div>
+    <div class="saldo-pill" style="background:var(--green-dim)">
+      <div class="pill-label">💰 Disponible</div>
+      <div class="pill-val" id="total-disponible" style="color:var(--green)">u$d —</div>
+    </div>
+    <div class="saldo-pill" style="background:var(--blue-dim)">
+      <div class="pill-label">📈 Invertido</div>
+      <div class="pill-val" id="total-invertido" style="color:var(--blue)">u$d —</div>
     </div>
     <div class="saldo-pill deudas">
       <div class="pill-label">Debo</div>
@@ -213,6 +228,13 @@
         <div class="chip" data-val="Banco" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--brown)"></span>Banco</div>
         <div class="chip" data-val="Plazo fijo" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--pink)"></span>Plazo fijo</div>
         <div class="chip" data-val="Otros" onclick="selectChip(this,'a-tipo')"><span class="chip-dot" style="background:var(--muted)"></span>Otros</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Disponibilidad</label>
+      <div class="chips" id="chips-a-disp">
+        <div class="chip active" data-val="Disponible" onclick="selectChip(this,'a-disp')" style="color:var(--green)"><span class="chip-dot" style="background:var(--green)"></span>💰 Disponible</div>
+        <div class="chip" data-val="Invertido" onclick="selectChip(this,'a-disp')"><span class="chip-dot" style="background:var(--blue)"></span>📈 Invertido</div>
       </div>
     </div>
     <div class="field">
@@ -313,6 +335,17 @@
   </div>
 </div>
 
+<!-- MODAL CONFIRMAR ELIMINACIÓN -->
+<div class="overlay" id="overlay-confirm" onclick="closeIfOutside(event,'confirm')">
+  <div class="sheet" style="padding-bottom:32px">
+    <div class="sheet-handle"></div>
+    <h2 style="color:var(--red)">Eliminar registro</h2>
+    <p id="confirm-msg" style="font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.6"></p>
+    <button class="save-btn red" id="btn-confirm-delete" onclick="confirmDelete()">Sí, eliminar</button>
+    <button onclick="closeModal('confirm')" style="width:100%;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:14px;padding:14px;cursor:pointer;margin-top:4px">Cancelar</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -328,9 +361,10 @@ let state = {
   persona: 'Manuel', tab: 'ahorros',
   ahorros: [], deudas: [], gastos: [],
   cotizacion: 1150, cotizacionTipo: 'est.',
-  chips: { 'a-moneda':'ARS','a-tipo':null,'a-persona':'Manuel','d-moneda':'ARS','s-moneda':'ARS','s-origen':'Otro lado','g-moneda':'ARS','g-cat':null,'g-origen':'Otro lado' },
+  chips: { 'a-moneda':'ARS','a-tipo':null,'a-persona':'Manuel','a-disp':'Disponible','d-moneda':'ARS','s-moneda':'ARS','s-origen':'Otro lado','g-moneda':'ARS','g-cat':null,'g-origen':'Otro lado' },
   editingAhorroId: null, editingDeudaId: null, editingGastoId: null
 };
+let pendingDelete = null;
 
 async function notionReq(path, method='GET', body=null) {
   const res = await fetch(WORKER_URL, {
@@ -351,7 +385,7 @@ function parseAhorro(p) {
     if(t==='checkbox') return pr[k].checkbox||false;
     if(t==='date') return pr[k].date?.start||null;
   };
-  return {id:p.id, desc:g('Descripción','title')||'Sin desc', montoARS:g('Monto ARS','number')||0, montoUSD:g('Monto USD','number')||0, tipo:g('Tipo','select')||'Otros', persona:g('Persona','select')||'Manuel', mes:g('Mes','select')||'', año:g('Año','select')||'', fecha:g('Fecha','date')||new Date().toISOString().split('T')[0], confirmado:g('Confirmado','checkbox')};
+  return {id:p.id, desc:g('Descripción','title')||'Sin desc', montoARS:g('Monto ARS','number')||0, montoUSD:g('Monto USD','number')||0, tipo:g('Tipo','select')||'Otros', persona:g('Persona','select')||'Manuel', mes:g('Mes','select')||'', año:g('Año','select')||'', fecha:g('Fecha','date')||new Date().toISOString().split('T')[0], confirmado:g('Confirmado','checkbox'), disponibilidad:g('Disponibilidad','select')||'Disponible'};
 }
 
 function parseDeuda(p) {
@@ -448,54 +482,45 @@ function renderSaldo() {
   const cotiz = state.cotizacion||1150;
   const ahorros = state.ahorros.filter(a=> state.persona==='Ambos' ? a.persona==='Ambos' : (a.persona===state.persona));
   const deudas  = state.deudas.filter(d=> (state.persona==='Ambos' ? d.persona==='Ambos' : d.persona===state.persona) && d.estado==='Pendiente');
-  const gastos  = state.gastos.filter(g=> state.persona==='Ambos' ? g.persona==='Ambos' : (g.persona===state.persona||g.persona==='Ambos'));
-  let totalAhorroUSD=0, totalDeudaUSD=0, totalGastoUSD=0;
-  ahorros.forEach(a=>{ totalAhorroUSD+=a.montoUSD||0; totalAhorroUSD+=(a.montoARS||0)/cotiz; });
+  let totalDispUSD=0, totalInvUSD=0, totalDeudaUSD=0;
+  ahorros.forEach(a=>{
+    const usd = (a.montoUSD||0) + (a.montoARS||0)/cotiz;
+    if(a.disponibilidad==='Invertido') totalInvUSD+=usd; else totalDispUSD+=usd;
+  });
   deudas.forEach(d=>{ totalDeudaUSD+=d.montoUSD||0; totalDeudaUSD+=(d.montoARS||0)/cotiz; });
-  gastos.forEach(g=>{ totalGastoUSD+=g.montoUSD||0; totalGastoUSD+=(g.montoARS||0)/cotiz; });
-  const ahorrosNeto = totalAhorroUSD - totalGastoUSD;
-  const neto = ahorrosNeto - totalDeudaUSD;
+  const totalAhorroUSD = totalDispUSD + totalInvUSD;
+  const neto = totalAhorroUSD - totalDeudaUSD;
   const objetivo = getObjetivo();
-  const pct = Math.min(100,(ahorrosNeto/objetivo)*100);
+  const pct = Math.min(100,(totalAhorroUSD/objetivo)*100);
   const fmt = v=>'u$d '+Math.round(Math.abs(v)).toLocaleString('es-AR');
-  document.getElementById('total-ahorros').textContent = fmt(ahorrosNeto);
-  document.getElementById('total-deudas').textContent  = fmt(totalDeudaUSD);
-  document.getElementById('total-neto').textContent    = (neto<0?'−':'')+fmt(neto);
-  document.getElementById('total-neto').style.color    = neto>=0?'var(--amber)':'var(--red)';
-  document.getElementById('progress-fill').style.width = Math.max(0,pct).toFixed(1)+'%';
-  document.getElementById('progress-label').textContent = `${Math.max(0,pct).toFixed(1)}% del objetivo`;
+  document.getElementById('total-disponible').textContent = fmt(totalDispUSD);
+  document.getElementById('total-invertido').textContent  = fmt(totalInvUSD);
+  document.getElementById('total-deudas').textContent     = fmt(totalDeudaUSD);
+  document.getElementById('total-neto').textContent       = (neto<0?'−':'')+fmt(neto);
+  document.getElementById('total-neto').style.color       = neto>=0?'var(--amber)':'var(--red)';
+  document.getElementById('progress-fill').style.width    = Math.max(0,pct).toFixed(1)+'%';
+  document.getElementById('progress-label').textContent   = `${Math.max(0,pct).toFixed(1)}% del objetivo`;
   updateObjetivoDisplay();
 }
 
 function renderTipos() {
   const tipos = ['Dólares físicos','Balanz','Cripto','Banco','Plazo fijo','Otros'];
-  const usd={}, ars={}, gastoUsd={}, gastoArs={};
-  tipos.forEach(t=>{ usd[t]=0; ars[t]=0; gastoUsd[t]=0; gastoArs[t]=0; });
+  const usd={}, ars={};
+  tipos.forEach(t=>{ usd[t]=0; ars[t]=0; });
 
   state.ahorros.filter(a=> state.persona==='Ambos' ? a.persona==='Ambos' : a.persona===state.persona).forEach(a=>{
     const t=a.tipo||'Otros'; usd[t]+=(a.montoUSD||0); ars[t]+=(a.montoARS||0);
   });
-  state.gastos.filter(g=>g.persona===state.persona||g.persona==='Ambos').forEach(g=>{
-    const t=g.saleDe||'Otro lado';
-    if(gastoUsd[t]!==undefined){ gastoUsd[t]+=(g.montoUSD||0); gastoArs[t]+=(g.montoARS||0); }
-  });
 
   document.getElementById('tipos-grid').innerHTML = tipos.map(t=>{
-    const netUSD = usd[t] - gastoUsd[t];
-    const netARS = ars[t] - gastoArs[t];
-    const hasGasto = gastoUsd[t]>0 || gastoArs[t]>0;
-    const hasData = usd[t]>0 || ars[t]>0;
-    const detalleId = `detalle-${t.replace(/\s/g,'-')}`;
-    return `<div class="tipo-card" style="background:${TIPO_DIM[t]};border-color:${TIPO_COLORS[t]}33" onclick="toggleDetalle('${detalleId}')">
+    const hasData = usd[t]!==0 || ars[t]!==0;
+    const isNeg = usd[t]<0 || ars[t]<0;
+    return `<div class="tipo-card" style="background:${TIPO_DIM[t]};border-color:${TIPO_COLORS[t]}33">
       <div class="tipo-dot" style="background:${TIPO_COLORS[t]}"></div>
       <div class="tipo-name">${t}</div>
       ${hasData ? `
-        ${netUSD!==0||usd[t]>0 ? `<div class="tipo-usd" style="color:${TIPO_COLORS[t]}">u$d ${Math.round(netUSD).toLocaleString('es-AR')}</div>` : ''}
-        ${netARS!==0||ars[t]>0 ? `<div class="tipo-ars">$ ${Math.round(netARS).toLocaleString('es-AR')}</div>` : ''}
-        ${hasGasto ? `<div id="${detalleId}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);">
-          <div>Ahorro: ${usd[t]>0?'u$d '+Math.round(usd[t]).toLocaleString('es-AR'):'$ '+Math.round(ars[t]).toLocaleString('es-AR')}</div>
-          <div style="color:var(--red)">− Gastado: ${gastoUsd[t]>0?'u$d '+Math.round(gastoUsd[t]).toLocaleString('es-AR'):'$ '+Math.round(gastoArs[t]).toLocaleString('es-AR')}</div>
-        </div>` : ''}
+        ${usd[t]!==0 ? `<div class="tipo-usd" style="color:${isNeg?'var(--red)':TIPO_COLORS[t]}">${usd[t]<0?'−':''}u$d ${Math.round(Math.abs(usd[t])).toLocaleString('es-AR')}</div>` : ''}
+        ${ars[t]!==0 ? `<div class="tipo-ars">${ars[t]<0?'−':''}$ ${Math.round(Math.abs(ars[t])).toLocaleString('es-AR')}</div>` : ''}
       ` : `<div class="tipo-usd" style="color:var(--muted)">—</div>`}
     </div>`;
   }).join('');
@@ -507,21 +532,29 @@ function toggleDetalle(id) {
 }
 
 function renderAhorros() {
-  const sorted = state.ahorros.filter(a=> state.persona==='Ambos' ? a.persona==='Ambos' : a.persona===state.persona).slice(0,20);
+  const sorted = state.ahorros.filter(a=> state.persona==='Ambos' ? a.persona==='Ambos' : a.persona===state.persona).slice(0,30);
   if(!sorted.length){document.getElementById('historial-ahorros').innerHTML='<div class="empty">Sin ahorros registrados</div>';return;}
   document.getElementById('historial-ahorros').innerHTML = sorted.map(a=>{
     const color=TIPO_COLORS[a.tipo]||'var(--muted)';
-    return `<div class="entry">
-      <div class="entry-dot" style="background:${color}"></div>
+    const isNeg = (a.montoUSD||0) < 0 || (a.montoARS||0) < 0;
+    const usdAbs = Math.abs(a.montoUSD||0);
+    const arsAbs = Math.abs(a.montoARS||0);
+    const dispColor = a.disponibilidad==='Invertido' ? 'var(--blue)' : 'var(--green)';
+    const dispBg = a.disponibilidad==='Invertido' ? 'var(--blue-dim)' : 'var(--green-dim)';
+    const dispIcon = a.disponibilidad==='Invertido' ? '📈' : '💰';
+    const descSafe = a.desc.replace(/'/g,"\\'");
+    return `<div class="entry" style="${isNeg?'opacity:0.8':''}">
+      <div class="entry-dot" style="background:${isNeg?'var(--red)':color}"></div>
       <div class="entry-info">
-        <div class="entry-desc">${a.desc}</div>
-        <div class="entry-meta">${a.tipo} · ${a.mes} ${a.año}</div>
+        <div class="entry-desc" style="${isNeg?'color:var(--muted)':''}">${a.desc}</div>
+        <div class="entry-meta">${a.tipo} · ${a.mes} ${a.año} &nbsp;<span class="disp-badge" style="background:${dispBg};color:${dispColor}">${dispIcon} ${a.disponibilidad}</span></div>
       </div>
       <div class="entry-amounts">
-        ${a.montoUSD>0?`<div class="entry-usd" style="color:var(--green)">u$d ${Math.round(a.montoUSD).toLocaleString('es-AR')}</div>`:''}
-        ${a.montoARS>0?`<div class="entry-ars">$ ${Math.round(a.montoARS).toLocaleString('es-AR')}</div>`:''}
+        ${usdAbs>0?`<div class="entry-usd" style="color:${isNeg?'var(--red)':'var(--green)'}">${isNeg?'−':''}u$d ${Math.round(usdAbs).toLocaleString('es-AR')}</div>`:''}
+        ${arsAbs>0?`<div class="entry-ars">${isNeg?'−':''}$ ${Math.round(arsAbs).toLocaleString('es-AR')}</div>`:''}
       </div>
-      <button onclick="editAhorro('${a.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;font-size:15px;flex-shrink:0;">✏️</button>
+      ${!isNeg?`<button onclick="editAhorro('${a.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;font-size:15px;flex-shrink:0;">✏️</button>`:''}
+      <button class="del-btn" onclick="promptDelete('ahorro','${a.id}','${descSafe}')">🗑️</button>
     </div>`;
   }).join('');
 }
@@ -543,6 +576,7 @@ function renderDeudas() {
       </div>
       ${isPend ? `<button onclick="openSaldar('${d.id}')" style="background:var(--green-dim);border:1px solid var(--green);color:var(--green);border-radius:10px;padding:4px 8px;font-size:11px;font-family:'DM Sans',sans-serif;cursor:pointer;flex-shrink:0;white-space:nowrap;">Saldar</button>` : `<span class="entry-badge badge-pagada">Pagada</span>`}
       <button onclick="editDeuda('${d.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;font-size:15px;flex-shrink:0;">✏️</button>
+      <button class="del-btn" onclick="promptDelete('deuda','${d.id}','${d.desc.replace(/'/g,"\\'")}')">🗑️</button>
     </div>`;
   }).join('');
 }
@@ -587,10 +621,14 @@ function closeModal(type) {
     document.querySelectorAll('#chips-a-moneda .chip').forEach(c=>c.classList.remove('active'));
     document.querySelector('#chips-a-moneda .chip[data-val="ARS"]').classList.add('active');
     state.chips['a-moneda']='ARS';
+    document.querySelectorAll('#chips-a-disp .chip').forEach(c=>c.classList.remove('active'));
+    document.querySelector('#chips-a-disp .chip[data-val="Disponible"]').classList.add('active');
+    state.chips['a-disp']='Disponible';
     document.getElementById('btn-save-ahorro').textContent='Guardar ahorro';
     document.getElementById('btn-save-ahorro').className='save-btn';
     document.querySelector('#overlay-ahorro h2').textContent='Nuevo ahorro';
   }
+  if(type==='confirm'){ pendingDelete=null; }
   if(type==='gasto'){
     document.getElementById('g-desc').value='';document.getElementById('g-monto').value='';
     state.editingGastoId=null;
@@ -627,6 +665,11 @@ function editAhorro(id) {
   document.querySelector(`#chips-a-moneda .chip[data-val="${esUSD?'USD':'ARS'}"]`).classList.add('active');
   state.chips['a-moneda'] = esUSD ? 'USD' : 'ARS';
   document.getElementById('a-monto').value = esUSD ? a.montoUSD : a.montoARS;
+  // Set disponibilidad
+  document.querySelectorAll('#chips-a-disp .chip').forEach(c=>c.classList.remove('active'));
+  const dispVal = a.disponibilidad||'Disponible';
+  const dispChip = document.querySelector(`#chips-a-disp .chip[data-val="${dispVal}"]`);
+  if(dispChip){ dispChip.classList.add('active'); state.chips['a-disp']=dispVal; }
   // Set tipo
   document.querySelectorAll('#chips-a-tipo .chip').forEach(c=>c.classList.remove('active'));
   const tipoChip = document.querySelector(`#chips-a-tipo .chip[data-val="${a.tipo}"]`);
@@ -669,6 +712,7 @@ function renderGastos() {
         ${g.montoARS>0?`<div class="entry-ars">$ ${Math.round(g.montoARS).toLocaleString('es-AR')}</div>`:''}
       </div>
       <button onclick="editGasto('${g.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;font-size:15px;">✏️</button>
+      <button class="del-btn" onclick="promptDelete('gasto','${g.id}','${g.desc.replace(/'/g,"\\'")}')">🗑️</button>
     </div>`;
   }).join('');
 }
@@ -722,6 +766,29 @@ async function saveGasto() {
     } else {
       await notionReq('/v1/pages','POST',{parent:{database_id:DB_GASTOS},properties:props});
       state.gastos.unshift({id:Math.random().toString(36).slice(2),desc,montoARS:esUSD?0:monto,montoUSD:esUSD?monto:0,categoria:state.chips['g-cat'],saleDe:state.chips['g-origen'],persona:state.persona,mes:getMes(),año:getAño(),fecha:hoy});
+      // Si sale de un ahorro específico → crear movimiento negativo en ahorros automáticamente
+      const saleDe = state.chips['g-origen'];
+      if(saleDe !== 'Otro lado') {
+        const negProps = {
+          'Descripción':{title:[{text:{content:`↓ Gasto: ${desc}`}}]},
+          'Monto ARS':{number: esUSD ? 0 : -monto},
+          'Monto USD':{number: esUSD ? -monto : 0},
+          'Tipo':{select:{name: saleDe}},
+          'Disponibilidad':{select:{name:'Disponible'}},
+          'Persona':{select:{name: state.persona}},
+          'Mes':{select:{name:getMes()}},
+          'Año':{select:{name:getAño()}},
+          'Confirmado':{checkbox:true},
+          'Fecha':{date:{start:hoy}}
+        };
+        const negRes = await notionReq('/v1/pages','POST',{parent:{database_id:DB_AHORROS},properties:negProps});
+        state.ahorros.unshift({
+          id: negRes.id || Math.random().toString(36).slice(2),
+          desc:`↓ Gasto: ${desc}`, montoARS:esUSD?0:-monto, montoUSD:esUSD?-monto:0,
+          tipo:saleDe, disponibilidad:'Disponible', persona:state.persona,
+          mes:getMes(), año:getAño(), fecha:hoy, confirmado:true
+        });
+      }
       showToast('✓ Gasto registrado');
     }
     renderAll(); closeModal('gasto');
@@ -822,6 +889,7 @@ async function saveAhorro(){
     'Monto ARS':{number:esUSD?0:monto},
     'Monto USD':{number:esUSD?monto:0},
     'Tipo':{select:{name:state.chips['a-tipo']}},
+    'Disponibilidad':{select:{name:state.chips['a-disp']||'Disponible'}},
     'Persona':{select:{name:state.persona}},
     'Mes':{select:{name:getMes()}},
     'Año':{select:{name:getAño()}},
@@ -832,11 +900,11 @@ async function saveAhorro(){
     if(state.editingAhorroId) {
       await notionReq(`/v1/pages/${state.editingAhorroId}`,'PATCH',{properties:props});
       const idx = state.ahorros.findIndex(x=>x.id===state.editingAhorroId);
-      if(idx>-1) state.ahorros[idx] = {...state.ahorros[idx], desc, montoARS:esUSD?0:monto, montoUSD:esUSD?monto:0, tipo:state.chips['a-tipo']};
+      if(idx>-1) state.ahorros[idx] = {...state.ahorros[idx], desc, montoARS:esUSD?0:monto, montoUSD:esUSD?monto:0, tipo:state.chips['a-tipo'], disponibilidad:state.chips['a-disp']||'Disponible'};
       showToast('✓ Ahorro actualizado');
     } else {
       await notionReq('/v1/pages','POST',{parent:{database_id:DB_AHORROS},properties:props});
-      state.ahorros.unshift({id:Math.random().toString(36).slice(2),desc,montoARS:esUSD?0:monto,montoUSD:esUSD?monto:0,tipo:state.chips['a-tipo'],persona:state.persona,mes:getMes(),año:getAño(),fecha:hoy,confirmado:true});
+      state.ahorros.unshift({id:Math.random().toString(36).slice(2),desc,montoARS:esUSD?0:monto,montoUSD:esUSD?monto:0,tipo:state.chips['a-tipo'],disponibilidad:state.chips['a-disp']||'Disponible',persona:state.persona,mes:getMes(),año:getAño(),fecha:hoy,confirmado:true});
       showToast('✓ Ahorro guardado');
     }
     renderAll(); closeModal('ahorro');
@@ -880,13 +948,64 @@ async function saveDeuda(){
   finally { btn.disabled=false; btn.textContent = state.editingDeudaId ? 'Actualizar deuda' : 'Guardar deuda'; }
 }
 
+async function setupNotion() {
+  const btn = document.getElementById('setup-btn');
+  btn.textContent = 'Configurando...'; btn.disabled = true;
+  try {
+    await notionReq(`/v1/databases/${DB_AHORROS}`, 'PATCH', {
+      properties: {
+        'Disponibilidad': { select: { options: [
+          { name: 'Disponible', color: 'green' },
+          { name: 'Invertido',  color: 'blue'  }
+        ]}}
+      }
+    });
+    localStorage.setItem('notion_setup_done', '1');
+    document.getElementById('setup-banner').style.display = 'none';
+    showToast('✓ Propiedad creada en Notion');
+  } catch(e) {
+    showToast('Error al configurar — revisá permisos', true);
+    btn.textContent = 'Reintentar'; btn.disabled = false;
+  }
+}
+
+function checkSetup() {
+  if(!localStorage.getItem('notion_setup_done')) {
+    document.getElementById('setup-banner').style.display = 'flex';
+  }
+}
+
+function promptDelete(type, id, desc) {
+  pendingDelete = {type, id};
+  const labels = {ahorro:'ahorro', deuda:'deuda', gasto:'gasto'};
+  document.getElementById('confirm-msg').textContent = `¿Eliminar "${desc}"? Se archivará en Notion y desaparecerá de la app.`;
+  document.getElementById('overlay-confirm').classList.add('open');
+}
+
+async function confirmDelete() {
+  if(!pendingDelete) return;
+  const {type, id} = pendingDelete;
+  const btn = document.getElementById('btn-confirm-delete');
+  btn.disabled=true; btn.textContent='Eliminando...';
+  try {
+    await notionReq(`/v1/pages/${id}`, 'PATCH', {archived: true});
+    if(type==='ahorro') state.ahorros = state.ahorros.filter(x=>x.id!==id);
+    else if(type==='deuda') state.deudas = state.deudas.filter(x=>x.id!==id);
+    else if(type==='gasto') state.gastos = state.gastos.filter(x=>x.id!==id);
+    renderAll();
+    closeModal('confirm');
+    showToast('✓ Eliminado correctamente');
+  } catch { showToast('Error al eliminar', true); }
+  finally { btn.disabled=false; btn.textContent='Sí, eliminar'; pendingDelete=null; }
+}
+
 function showToast(msg,error=false){
   const t=document.getElementById('toast');
   t.textContent=msg; t.className='toast'+(error?' error':'');
   t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800);
 }
 
-Promise.all([loadAll(), fetchCotizacion()]).then(()=>renderAll());
+Promise.all([loadAll(), fetchCotizacion()]).then(()=>{ renderAll(); checkSetup(); });
 </script>
 </body>
 </html>
